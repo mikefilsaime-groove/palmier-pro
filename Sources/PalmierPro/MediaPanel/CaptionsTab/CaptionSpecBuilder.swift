@@ -16,6 +16,7 @@ enum CaptionSpecBuilder {
         let center: CGPoint
         let textCase: EditorViewModel.CaptionCase
         let maxWords: Int?
+        let maxCharacters: Int?
         let gapSettings: CaptionGapSettings
         let animation: TextAnimation?
     }
@@ -33,7 +34,7 @@ enum CaptionSpecBuilder {
                 result: target.result,
                 fps: input.fps,
                 maxWords: input.maxWords,
-                minDuration: AppTheme.Caption.minDisplayDuration,
+                maxCharacters: input.maxCharacters,
                 fits: { text in
                     if Task.isCancelled { return true }
                     return lineFits(
