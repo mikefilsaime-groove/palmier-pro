@@ -26,6 +26,7 @@ enum CaptionBuilder {
     ) -> [Phrase] {
         let wordCap = maxWords.map { max(1, $0) }
         let characterCap = maxCharacters.map { max(1, $0) }
+        // Visual, word, and character limits must all accept a phrase.
         let pieces = split(segment.text) { text in
             fits(text)
                 && (wordCap.map { wordCount(text) <= $0 } ?? true)

@@ -62,6 +62,19 @@ struct CaptionBuilderTests {
         #expect(phrases.map(\.text) == ["hi,", "you"])
     }
 
+    @Test func wordAndCharacterCapsApplyTogetherWithoutDroppingText() {
+        let phrases = CaptionBuilder.phrases(
+            for: segment("a bb ccc dddd", 0, 4),
+            fits: { _ in true },
+            maxWords: 2,
+            maxCharacters: 5
+        )
+
+        #expect(phrases.allSatisfy { $0.text.split(separator: " ").count <= 2 })
+        #expect(phrases.allSatisfy { $0.text.count <= 5 })
+        #expect(phrases.map(\.text).joined(separator: " ") == "a bb ccc dddd")
+    }
+
     @Test func keepsPunctuatedTokensIntact() {
         let phrases = CaptionBuilder.phrases(for: segment("U.S. army here", 0, 6), fits: { $0.count <= 6 })
         #expect(phrases.map(\.text) == ["U.S.", "army", "here"])
