@@ -177,16 +177,23 @@ enum CaptionSpecBuilder {
         _ spec: inout EditorViewModel.TextClipSpec,
         to startFrame: Int
     ) {
+        let wordOffsetFrames = positiveDistance(from: spec.startFrame, to: startFrame) ?? 0
         let originalEnd = endFrame(of: spec)
         spec.startFrame = startFrame
-        spec.durationFrames = originalEnd.flatMap {
+        let durationFrames = originalEnd.flatMap {
             positiveDistance(from: startFrame, to: $0)
         } ?? 1
+        spec = resized(
+            spec,
+            durationFrames: durationFrames,
+            wordOffsetFrames: wordOffsetFrames
+        )
     }
 
     private static func resized(
         _ spec: EditorViewModel.TextClipSpec,
         durationFrames: Int,
+        wordOffsetFrames: Int = 0,
         extendWordCycle: Bool = false
     ) -> EditorViewModel.TextClipSpec {
         var resized = spec
@@ -194,8 +201,10 @@ enum CaptionSpecBuilder {
         guard let originalWords = resized.words else { return resized }
 
         var words = originalWords.compactMap { word -> WordTiming? in
-            let start = min(max(0, word.startFrame), durationFrames)
-            let end = min(max(start, word.endFrame), durationFrames)
+            let shiftedStart = word.startFrame.subtractingReportingOverflow(wordOffsetFrames)
+            let shiftedEnd = word.endFrame.subtractingReportingOverflow(wordOffsetFrames)
+            let start = min(max(0, shiftedStart.overflow ? 0 : shiftedStart.partialValue), durationFrames)
+            let end = min(max(start, shiftedEnd.overflow ? 0 : shiftedEnd.partialValue), durationFrames)
             return end > start
                 ? WordTiming(text: word.text, startFrame: start, endFrame: end)
                 : nil

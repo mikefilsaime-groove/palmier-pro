@@ -294,6 +294,7 @@ private func mediaAsset(_ id: String, hasAudio: Bool = true) -> MediaAsset {
         #expect(specs.map(\.content) == ["one", "two"])
         #expect(specs.map(\.startFrame) == [0, 5])
         #expect(specs.map(\.durationFrames) == [5, 20])
+        #expect(specs[1].words == [WordTiming(text: "two", startFrame: 0, endFrame: 20)])
     }
 
     @Test func shorterNextCaptionOwnsOverlappingFrames() async throws {
@@ -337,6 +338,7 @@ private func mediaAsset(_ id: String, hasAudio: Bool = true) -> MediaAsset {
         #expect(specs.map(\.startFrame) == [0, 1])
         #expect(specs.map(\.durationFrames) == [1, 4])
         #expect(specs.allSatisfy { $0.content.count <= 3 })
+        #expect(specs[1].words == [WordTiming(text: "two", startFrame: 0, endFrame: 4)])
     }
 
     @Test func sameFrameCollisionChainPreservesEveryCaption() async throws {
