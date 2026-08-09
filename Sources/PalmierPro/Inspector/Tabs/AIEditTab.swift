@@ -516,7 +516,7 @@ struct AIEditTab: View {
 
     private var aiDisabledReason: String? {
         if account.isMisconfigured { return L10n.string("AI is unavailable") }
-        if !account.isSignedIn { return L10n.string("Sign in to use AI") }
+        if !account.isSignedIn { return L10n.string("Connect GodMode MCP to use AI") }
         return nil
     }
 

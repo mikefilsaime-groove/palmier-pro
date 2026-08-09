@@ -1,16 +1,16 @@
 {
   "manifest_version": "0.4",
-  "name": "palmier-pro",
-  "display_name": "Palmier Pro",
+  "name": "creatorstudio-editor",
+  "display_name": "CreatorStudio Editor",
   "version": "0.2.0",
-  "description": "Edit your videos with Palmier Pro from Claude Desktop.",
-  "long_description": "Connects Claude Desktop to the local MCP server inside Palmier Pro — an AI-native Mac video editor. Once installed, Claude can read your timeline, edit clips, generate media, and manage tracks.",
+  "description": "Edit videos in CreatorStudio Editor from Claude Desktop.",
+  "long_description": "Connects Claude Desktop to CreatorStudio Editor's local MCP server. Claude can inspect timelines, edit clips, use connected media generators, and manage tracks subject to the signed-in user's GodMode entitlement.",
   "icon": "icon.png",
   "author": {
-    "name": "Palmier",
-    "url": "https://palmier.io"
+    "name": "CreatorStudio",
+    "url": "https://creatorstudio.gg"
   },
-  "homepage": "https://palmier.io",
+  "homepage": "https://creatorstudio.gg",
   "keywords": ["video", "editor", "timeline", "creative", "media"],
   "compatibility": {
     "platforms": ["darwin"],

@@ -24,8 +24,8 @@
           ],
           "glass" : true,
           "hidden" : false,
-          "image-name" : "palmier-logo.png",
-          "name" : "palmier-logo",
+          "image-name" : "scale-logo.png",
+          "name" : "scale-logo",
           "position" : {
             "scale" : 0.55,
             "translation-in-points" : [

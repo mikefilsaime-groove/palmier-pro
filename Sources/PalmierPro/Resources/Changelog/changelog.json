@@ -1,15 +1,16 @@
 {
-  "changelogURL": "https://github.com/palmier-io/palmier-pro/releases",
+  "changelogURL": "https://github.com/mikefilsaime-groove/palmier-pro/releases",
   "entries": [
     {
-      "version": "0.7.2",
-      "date": "2026-08-05",
+      "version": "0.1.0",
+      "date": "2026-08-08",
       "sections": [
         {
           "heading": "New",
           "items": [
-            "New Video Models: Minimax H3 and Flux 3 are available on Palmier Pro. Flux 3 supports draft mode which is a faster and cheaper way to iterate",
-            "Agent can now swap media in your timeline"
+            "CreatorStudio Editor uses your CreatorStudio Fal.ai connection for image and video generation",
+            "Local Fal.ai fallback and ElevenLabs credentials are stored in macOS Keychain",
+            "ClickCampaigns GodMode controls protected features while existing projects remain editable and exportable"
           ]
         }
       ]

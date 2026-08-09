@@ -1,6 +1,4 @@
 import Foundation
-import Combine
-@preconcurrency import ConvexMobile
 
 enum ModelKind: Sendable {
     case video(VideoModelConfig)
@@ -30,7 +28,6 @@ enum ModelRegistry {
 @MainActor
 final class ModelCatalog {
     static let shared = ModelCatalog()
-    private static let supportedCatalogVersion: Double = 4
 
     private(set) var video: [VideoModelConfig] = []
     private(set) var image: [ImageModelConfig] = []
@@ -40,59 +37,48 @@ final class ModelCatalog {
     private(set) var isLoaded: Bool = false
     private(set) var lastError: String?
 
-    @ObservationIgnored private var subscription: AnyCancellable?
     @ObservationIgnored private var didConfigure = false
-    @ObservationIgnored private var retryTask: Task<Void, Never>?
-    @ObservationIgnored private var failureCount = 0
+    @ObservationIgnored private var operations: [String: String] = [:]
+    @ObservationIgnored private var catalogVersions: [String: String] = [:]
 
     private init() {}
 
     func configure() {
         guard !didConfigure else { return }
         didConfigure = true
-        startSubscription()
+        apply(Self.builtInAudioEntries(voices: [], ttsModels: []))
+        Task { @MainActor [weak self] in await self?.reload() }
     }
 
-    private func startSubscription() {
-        guard let client = AccountService.shared.convex else { return }
-
-        subscription = client
-            .subscribe(
-                to: "models:list",
-                with: ["catalogVersion": Self.supportedCatalogVersion],
-                yielding: [CatalogEntry].self
-            )
-            .receive(on: DispatchQueue.main)
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    if case .failure(let err) = completion {
-                        self?.handleFailure(err)
-                    }
-                },
-                receiveValue: { [weak self] entries in
-                    self?.failureCount = 0
-                    self?.apply(entries)
-                }
-            )
-    }
-
-    private func handleFailure(_ err: ClientError) {
-        failureCount += 1
-        lastError = err.localizedDescription
-        // First failure goes to Sentry; retries only log locally.
-        if failureCount == 1 {
-            Log.generation.error("ModelCatalog subscription failed: \(err.localizedDescription)")
-        } else {
-            Log.generation.warning("ModelCatalog subscription failed (attempt \(self.failureCount)): \(err.localizedDescription)")
+    func reload() async {
+        var entries = Self.builtInAudioEntries(voices: [], ttsModels: [])
+        if let key = await GenerationCredentialStore.credential(.elevenLabs) {
+            async let voices = ElevenLabsClient.voices(apiKey: key)
+            async let models = ElevenLabsClient.models(apiKey: key)
+            if let resolvedVoices = try? await voices, let resolvedModels = try? await models {
+                entries = Self.builtInAudioEntries(voices: resolvedVoices, ttsModels: resolvedModels)
+            }
         }
-        let delay = min(pow(2.0, Double(failureCount - 1)), 60)
-        retryTask?.cancel()
-        retryTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled else { return }
-            self?.startSubscription()
+        guard CreatorStudioSession.shared.canUseProtectedFeatures else {
+            apply(entries)
+            return
+        }
+        do {
+            async let video = CreatorStudioAPIClient.catalog(kind: "video")
+            async let image = CreatorStudioAPIClient.catalog(kind: "image")
+            let remote = try await (video, image)
+            entries.append(contentsOf: remote.0.models.compactMap(Self.videoEntry))
+            entries.append(contentsOf: remote.1.models.compactMap(Self.imageEntry))
+            apply(entries)
+        } catch {
+            apply(entries)
+            lastError = error.localizedDescription
+            Log.generation.warning("CreatorStudio model catalog unavailable: \(error.localizedDescription)")
         }
     }
+
+    func operation(for modelID: String) -> String? { operations[modelID] }
+    func catalogVersion(for modelID: String) -> String? { catalogVersions[modelID] }
 
     private func apply(_ entries: [CatalogEntry]) {
         var newVideo: [VideoModelConfig] = []
@@ -100,6 +86,8 @@ final class ModelCatalog {
         var newAudio: [AudioModelConfig] = []
         var newUpscale: [UpscaleModelConfig] = []
         var newById: [String: ModelKind] = [:]
+        var newOperations: [String: String] = [:]
+        var newCatalogVersions: [String: String] = [:]
         newVideo.reserveCapacity(entries.count)
         newImage.reserveCapacity(entries.count)
         newAudio.reserveCapacity(entries.count)
@@ -107,6 +95,8 @@ final class ModelCatalog {
         newById.reserveCapacity(entries.count)
 
         for entry in entries {
+            newOperations[entry.id] = entry.operation
+            newCatalogVersions[entry.id] = entry.catalogVersion
             switch entry.uiCapabilities {
             case .video(let caps):
                 let m = VideoModelConfig(entry: entry, caps: caps)
@@ -132,8 +122,143 @@ final class ModelCatalog {
         self.audio = newAudio
         self.upscale = newUpscale
         self.byId = newById
+        self.operations = newOperations
+        self.catalogVersions = newCatalogVersions
         self.isLoaded = true
         self.lastError = nil
+    }
+
+    private static func videoEntry(_ model: CreatorStudioCatalogModel) -> CatalogEntry? {
+        guard model.mediaKind == "video", let capabilities = model.capabilities.objectValue else { return nil }
+        let durations = capabilities.intArray("durations")
+        let resolutions = capabilities.stringArray("resolutions")
+        let aspectRatios = capabilities.stringArray("aspectRatios")
+        let maximumReferences = capabilities.int("maximumReferences") ?? 1
+        let operation = model.operation
+        let isReferences = operation == "reference_to_video"
+        let isExtend = operation == "extend_video"
+        let supportsFirst = operation == "image_to_video" || operation == "first_last_frame"
+        let supportsLast = operation == "first_last_frame"
+        let caps = VideoCaps(
+            supportsPrompt: true,
+            durations: durations,
+            resolutions: resolutions.isEmpty ? nil : resolutions,
+            aspectRatios: aspectRatios,
+            supportsFirstFrame: supportsFirst,
+            supportsLastFrame: supportsLast,
+            maxReferenceImages: isReferences ? maximumReferences : 0,
+            maxReferenceVideos: isReferences ? maximumReferences : 0,
+            maxReferenceAudios: isReferences ? maximumReferences : 0,
+            maxTotalReferences: isReferences ? maximumReferences : nil,
+            maxCombinedVideoRefSeconds: nil,
+            maxCombinedAudioRefSeconds: nil,
+            framesAndReferencesExclusive: false,
+            referenceTagNoun: "reference",
+            requiresSourceVideo: isExtend,
+            maxSourceVideoSeconds: nil,
+            maxSourceVideoResolution: nil,
+            requiredSourceVideoEncoding: nil,
+            requiresReferenceImage: false,
+            requiresReferenceAudio: false,
+            draftCreditsPerSecond: nil,
+            draftEnhanceCreditsPerSecond: nil,
+            sourceVideoCreditsPerSecond: nil,
+            sourceVideoDraftCreditsPerSecond: nil
+        )
+        return CatalogEntry(
+            id: model.id,
+            kind: .video,
+            displayName: model.label,
+            providerIconKey: "fal",
+            providerName: "Fal.ai",
+            description: nil,
+            allowedEndpoints: [],
+            responseShape: .video,
+            uiCapabilities: .video(caps),
+            paidOnly: false,
+            operation: operation,
+            catalogVersion: model.catalogVersion,
+            estimatedProviderCost: model.estimatedProviderCost
+        )
+    }
+
+    private static func imageEntry(_ model: CreatorStudioCatalogModel) -> CatalogEntry? {
+        guard model.mediaKind == "image", let capabilities = model.capabilities.objectValue else { return nil }
+        let refs = capabilities["referenceImages"]?.objectValue
+        let maximumReferences = refs?.int("maximum") ?? 0
+        let caps = ImageCaps(
+            resolutions: nil,
+            aspectRatios: capabilities.stringArray("aspectRatios"),
+            qualities: capabilities.stringArray("qualities").nilIfEmpty,
+            supportsImageReference: maximumReferences > 0,
+            maxImages: capabilities.intArray("outputCounts").max() ?? 1
+        )
+        return CatalogEntry(
+            id: model.id,
+            kind: .image,
+            displayName: model.label,
+            providerIconKey: "fal",
+            providerName: "Fal.ai",
+            description: nil,
+            allowedEndpoints: [],
+            responseShape: .images,
+            uiCapabilities: .image(caps),
+            paidOnly: false,
+            operation: model.operation,
+            catalogVersion: model.catalogVersion,
+            estimatedProviderCost: model.estimatedProviderCost
+        )
+    }
+
+    private static func builtInAudioEntries(
+        voices: [ElevenLabsClient.Voice],
+        ttsModels: [ElevenLabsClient.Model]
+    ) -> [CatalogEntry] {
+        let voiceIDs = voices.map(\.voiceId)
+        let defaultVoice = voiceIDs.first
+        let availableTTS = ttsModels.filter { $0.canDoTextToSpeech != false }
+        let resolvedTTS = availableTTS.isEmpty
+            ? [ElevenLabsClient.Model(modelId: "eleven_multilingual_v2", name: "Eleven Multilingual v2", canDoTextToSpeech: true)]
+            : availableTTS
+        var entries = resolvedTTS.map { model in
+            CatalogEntry(
+                id: "elevenlabs/\(model.modelId)",
+                kind: .audio,
+                displayName: model.name,
+                providerIconKey: nil,
+                providerName: "ElevenLabs",
+                description: nil,
+                allowedEndpoints: [],
+                responseShape: .audio,
+                uiCapabilities: .audio(AudioCaps(
+                    category: "tts", voices: voiceIDs, defaultVoice: defaultVoice,
+                    supportsLyrics: false, supportsInstrumental: false,
+                    supportsStyleInstructions: false, durations: nil, durationRange: nil,
+                    minPromptLength: 1, maxReferenceImages: 0, maxReferenceAudios: 0,
+                    maxReferenceAudioSeconds: nil, referenceAudioExtensions: nil,
+                    referenceImagesAndAudiosExclusive: false, supportsMultilingual: true,
+                    inputs: ["text"], promptLabel: "Text to speak", minSeconds: nil,
+                    maxSeconds: nil, targetLanguages: nil, defaultTargetLanguage: nil
+                )),
+                paidOnly: false,
+                operation: "text-to-speech",
+                catalogVersion: "elevenlabs-live",
+                estimatedProviderCost: nil
+            )
+        }
+        entries.append(CatalogEntry.audio(
+            id: "elevenlabs/sound-effects", name: "Sound Effects", category: "sfx",
+            operation: "text-to-sound-effects", inputs: ["text"], duration: .init(minimum: 1, maximum: 22, defaultValue: 5)
+        ))
+        entries.append(CatalogEntry.audio(
+            id: "elevenlabs/music", name: "Music", category: "music",
+            operation: "text-to-music", inputs: ["text"], duration: .init(minimum: 3, maximum: 600, defaultValue: 30), instrumental: true
+        ))
+        entries.append(CatalogEntry.audio(
+            id: "elevenlabs/video-to-music", name: "Music for Video", category: "music",
+            operation: "video-to-music", inputs: ["video"], duration: .init(minimum: 3, maximum: 600, defaultValue: 30), instrumental: true
+        ))
+        return entries
     }
 }
 
@@ -155,6 +280,9 @@ struct CatalogEntry: Decodable, Sendable {
     let creditsPerSecondUpscale: Double?
     let upscalePricing: UpscalePricing?
     let paidOnly: Bool
+    let operation: String
+    let catalogVersion: String
+    let estimatedProviderCost: Double?
 
     enum Kind: String, Decodable, Sendable { case video, image, audio, upscale }
     enum ResponseShape: String, Decodable, Sendable {
@@ -200,6 +328,7 @@ struct CatalogEntry: Decodable, Sendable {
         case id, kind, displayName, providerIconKey, providerName, description, allowedEndpoints, responseShape, uiCapabilities
         case creditsPerSecond, audioDiscountRate, creditsPerImage, qualities
         case audioPricing, creditsPerSecondUpscale, upscalePricing, paidOnly
+        case operation, catalogVersion, estimatedProviderCost
     }
 
     init(from decoder: Decoder) throws {
@@ -220,6 +349,9 @@ struct CatalogEntry: Decodable, Sendable {
         self.creditsPerSecondUpscale = try c.decodeIfPresent(Double.self, forKey: .creditsPerSecondUpscale)
         self.upscalePricing = try c.decodeIfPresent(UpscalePricing.self, forKey: .upscalePricing)
         self.paidOnly = try c.decodeIfPresent(Bool.self, forKey: .paidOnly) ?? false
+        self.operation = try c.decodeIfPresent(String.self, forKey: .operation) ?? kind.rawValue
+        self.catalogVersion = try c.decodeIfPresent(String.self, forKey: .catalogVersion) ?? "legacy"
+        self.estimatedProviderCost = try c.decodeIfPresent(Double.self, forKey: .estimatedProviderCost)
         switch self.kind {
         case .video:
             self.uiCapabilities = .video(try c.decode(VideoCaps.self, forKey: .uiCapabilities))
@@ -231,6 +363,96 @@ struct CatalogEntry: Decodable, Sendable {
             self.uiCapabilities = .upscale(try c.decode(UpscaleCaps.self, forKey: .uiCapabilities))
         }
     }
+
+    init(
+        id: String,
+        kind: Kind,
+        displayName: String,
+        providerIconKey: String?,
+        providerName: String?,
+        description: String?,
+        allowedEndpoints: [String],
+        responseShape: ResponseShape,
+        uiCapabilities: UICapabilities,
+        paidOnly: Bool,
+        operation: String,
+        catalogVersion: String,
+        estimatedProviderCost: Double?
+    ) {
+        self.id = id
+        self.kind = kind
+        self.displayName = displayName
+        self.providerIconKey = providerIconKey
+        self.providerName = providerName
+        self.description = description
+        self.allowedEndpoints = allowedEndpoints
+        self.responseShape = responseShape
+        self.uiCapabilities = uiCapabilities
+        self.creditsPerSecond = nil
+        self.audioDiscountRate = nil
+        self.creditsPerImage = nil
+        self.qualities = nil
+        self.audioPricing = nil
+        self.creditsPerSecondUpscale = nil
+        self.upscalePricing = nil
+        self.paidOnly = paidOnly
+        self.operation = operation
+        self.catalogVersion = catalogVersion
+        self.estimatedProviderCost = estimatedProviderCost
+    }
+
+    static func audio(
+        id: String,
+        name: String,
+        category: String,
+        operation: String,
+        inputs: [String],
+        duration: AudioDurationRange,
+        instrumental: Bool = false
+    ) -> CatalogEntry {
+        CatalogEntry(
+            id: id, kind: .audio, displayName: name, providerIconKey: nil,
+            providerName: "ElevenLabs", description: nil, allowedEndpoints: [],
+            responseShape: .audio,
+            uiCapabilities: .audio(AudioCaps(
+                category: category, voices: nil, defaultVoice: nil, supportsLyrics: false,
+                supportsInstrumental: instrumental, supportsStyleInstructions: false,
+                durations: nil, durationRange: duration, minPromptLength: 1,
+                maxReferenceImages: 0, maxReferenceAudios: 0,
+                maxReferenceAudioSeconds: nil, referenceAudioExtensions: nil,
+                referenceImagesAndAudiosExclusive: false, supportsMultilingual: false,
+                inputs: inputs, promptLabel: category == "music" ? "Describe the music" : "Describe the sound",
+                minSeconds: duration.minimum, maxSeconds: duration.maximum,
+                targetLanguages: nil, defaultTargetLanguage: nil
+            )),
+            paidOnly: false, operation: operation, catalogVersion: "elevenlabs-live",
+            estimatedProviderCost: nil
+        )
+    }
+}
+
+private extension Dictionary where Key == String, Value == JSONValue {
+    func stringArray(_ key: String) -> [String] {
+        guard case .array(let values)? = self[key] else { return [] }
+        return values.compactMap(\.stringValue)
+    }
+
+    func intArray(_ key: String) -> [Int] {
+        guard case .array(let values)? = self[key] else { return [] }
+        return values.compactMap { value in
+            guard case .number(let number) = value, number.isFinite else { return nil }
+            return Int(exactly: number)
+        }
+    }
+
+    func int(_ key: String) -> Int? {
+        guard case .number(let number)? = self[key], number.isFinite else { return nil }
+        return Int(exactly: number)
+    }
+}
+
+private extension Array {
+    var nilIfEmpty: Self? { isEmpty ? nil : self }
 }
 
 struct VideoCaps: Decodable, Sendable {

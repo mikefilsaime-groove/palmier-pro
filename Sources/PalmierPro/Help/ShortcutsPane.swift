@@ -119,8 +119,10 @@ struct ShortcutGroup {
     let shortcuts: [(String, String)]
 }
 
+#if canImport(PreviewsMacros)
 #Preview {
     ShortcutsPane()
         .frame(width: AppTheme.Settings.contentMaxWidth, height: AppTheme.Settings.skillDetailMinHeight)
         .background(AppTheme.Background.surfaceColor)
 }
+#endif

@@ -1,6 +1,14 @@
 import Foundation
 import Observation
 
+enum AgentServiceError: Error {
+    case unauthenticated
+    case insufficientCredits(String)
+    case unavailable(AgentModel)
+    case refusal(AgentModel)
+    case upstream(String)
+}
+
 @Observable
 @MainActor
 final class AgentService {
@@ -9,6 +17,10 @@ final class AgentService {
     private var apiKeyObserver: NSObjectProtocol?
     private let userDefaults: UserDefaults
     private var reasoningEfforts: [AgentModel: AgentReasoningEffort]
+    private var credentialLoadID = UUID()
+    private(set) var isLoadingCredentials = true
+    private(set) var isCheckingCodexAvailability = true
+    private var isCodexAvailable = false
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -28,12 +40,34 @@ final class AgentService {
                 self?.reloadAPIKeys()
             }
         }
+        refreshCodexAvailability()
+    }
+
+    private func refreshCodexAvailability() {
+        isCheckingCodexAvailability = true
+        Task { [weak self] in
+            let available = await CodexAppServer.isInstalled()
+            guard let self else { return }
+            self.isCodexAvailable = available
+            self.isCheckingCodexAvailability = false
+            if route != .unavailable, case .some(.unavailable) = streamError {
+                streamError = nil
+            }
+        }
     }
 
     private func reloadAPIKeys() {
+        let loadID = UUID()
+        credentialLoadID = loadID
+        isLoadingCredentials = true
         Task { [weak self] in
             let credentials = await AgentCredentialSnapshot.loadFromKeychain()
-            self?.credentials = credentials
+            guard let self, self.credentialLoadID == loadID else { return }
+            self.credentials = credentials
+            self.isLoadingCredentials = false
+            if route != .unavailable, case .some(.unavailable) = streamError {
+                streamError = nil
+            }
         }
     }
 
@@ -47,8 +81,7 @@ final class AgentService {
         AgentRouting.route(
             model: model,
             credentials: credentials,
-            hasHostedCredits: AccountService.shared.isSignedIn && AccountService.shared.hasCredits,
-            hasPaidPlan: AccountService.shared.isPaid
+            codexAvailable: isCodexAvailable
         )
     }
 
@@ -59,13 +92,15 @@ final class AgentService {
     var availableModels: [AgentModel] { AgentModel.allCases }
 
     func canSelectModel(_ candidate: AgentModel) -> Bool {
-        !candidate.requiresPaidHostedPlan
-            || AccountService.shared.isPaid
-            || !credentials[candidate.provider].isEmpty
+        true
     }
 
     var activeBYOKProvider: AgentProvider? {
         route == .direct ? model.provider : nil
+    }
+
+    var isLoadingChatAccess: Bool {
+        isLoadingCredentials || isCheckingCodexAvailability
     }
 
     var reasoningEffort: AgentReasoningEffort {
@@ -89,16 +124,15 @@ final class AgentService {
         switch AgentRouting.route(
             model: settings.model,
             credentials: credentials,
-            hasHostedCredits: AccountService.shared.isSignedIn && AccountService.shared.hasCredits,
-            hasPaidPlan: AccountService.shared.isPaid
+            codexAvailable: isCodexAvailable
         ) {
         case .direct:
             return BYOKClient(
                 apiKey: credentials[settings.model.provider],
                 settings: settings
             )
-        case .hosted:
-            return PalmierClient(settings: settings)
+        case .codex:
+            return CodexAgentClient(settings: settings)
         case .unavailable:
             return nil
         }
@@ -275,7 +309,6 @@ final class AgentService {
         draft = ""
         mentions.removeAll()
         streamError = nil
-        toolExecutor?.resetFeedbackState()
     }
 
     func newChat() {
@@ -291,7 +324,6 @@ final class AgentService {
         currentSessionId = session.id
         messages = []
         streamError = nil
-        toolExecutor?.resetFeedbackState()
         onSessionsChanged?()
     }
 
@@ -338,6 +370,10 @@ final class AgentService {
     }
 
     func send(text: String, mentions: [AgentMention]) {
+        guard CreatorStudioSession.shared.canUseProtectedFeatures else {
+            streamError = .upstream("Active ClickCampaigns GodMode is required to use the in-app Agent.")
+            return
+        }
         guard canStream else {
             streamError = .unavailable(model)
             return

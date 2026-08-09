@@ -19,7 +19,6 @@ struct AgentProviderTests {
         #expect(AgentModel.allCases.map(\.provider) == [
             .anthropic, .anthropic, .anthropic, .openAI, .openAI, .openAI,
         ])
-        #expect(AgentModel.allCases.filter(\.requiresPaidHostedPlan) == [.fable5, .sol])
         let anthropicEfforts: [AgentReasoningEffort] = [.low, .medium, .high, .xHigh, .max]
         let openAIEfforts = AgentReasoningEffort.allCases
         #expect(AgentModel.allCases.filter { $0.provider == .anthropic }
@@ -32,10 +31,13 @@ struct AgentProviderTests {
     @Test func routingUsesOnlyTheSelectedProvidersKey() {
         #expect(route(.sonnet5, key: .openAI) == .unavailable)
         #expect(route(.luna, key: .anthropic) == .unavailable)
-        #expect(route(.fable5, key: .anthropic, hasCredits: true) == .direct)
-        #expect(route(.terra, hasCredits: true) == .hosted)
-        #expect(route(.fable5, hasCredits: true) == .unavailable)
-        #expect(route(.sol, hasCredits: true, isPaid: true) == .hosted)
+        #expect(route(.fable5, key: .anthropic) == .direct)
+        #expect(route(.terra) == .unavailable)
+        #expect(route(.fable5) == .unavailable)
+        #expect(route(.sol) == .unavailable)
+        #expect(route(.terra, codexAvailable: true) == .codex)
+        #expect(route(.sol, key: .openAI, codexAvailable: true) == .direct)
+        #expect(route(.sonnet5, codexAvailable: true) == .unavailable)
     }
 
     @Test func anthropicReasoningUsesMediumDefaultAndExplicitEffort() throws {
@@ -163,12 +165,13 @@ struct AgentProviderTests {
 
     private func route(
         _ model: AgentModel,
-        key: AgentProvider? = nil, hasCredits: Bool = false, isPaid: Bool = false
+        key: AgentProvider? = nil,
+        codexAvailable: Bool = false
     ) -> AgentRoute {
         AgentRouting.route(
             model: model,
             credentials: AgentCredentialSnapshot(key.map { [$0: "key"] } ?? [:]),
-            hasHostedCredits: hasCredits, hasPaidPlan: isPaid
+            codexAvailable: codexAvailable
         )
     }
 

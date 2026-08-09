@@ -1,124 +1,116 @@
-# Palmier Pro Custom: Fal.ai BYOK Plan
+# CreatorStudio Editor Architecture and Upstream Plan
 
-## Purpose and scope
+## Product boundary
 
-This fork will add bring-your-own-key (BYOK) Fal.ai generation for image, video, and audio while retaining Palmier Pro's editor, generation UI, media preprocessing, placeholders, project persistence, result downloads, timeline integration, and MCP surface.
+CreatorStudio Editor is a native Swift macOS application derived from Palmier Pro's full GPLv3 history. It keeps Palmier's local editor, timeline, project package, export, Agent, and MCP capabilities while replacing Palmier's account, credits, model catalog, hosted generation, telemetry, feedback, and release services.
 
-The integration should be a contained provider addition rather than a broad rewrite. The goal is to minimize conflicts with Palmier's rapidly changing upstream code and make upstream updates routine.
+The public product name is **CreatorStudio Editor**. The bundle identifier is `gg.creatorstudio.editor`, and the executable Swift module and `.palmier` project format remain unchanged to preserve project compatibility and reduce upstream merge conflicts.
 
-This document records the initial investigation and architecture direction. No Fal.ai implementation was included in the repository-setup change.
+Palmier's repository supplies the open-source editor and desktop orchestration. Palmier's production catalog, credits, hosted generation, cloud transcription, hosted Agent fallback, telemetry, feedback, and update credentials are not part of the reusable open-source service boundary. CreatorStudio Editor supplies independent service implementations and never calls Palmier's private generation or billing systems.
 
-## Repository baseline
+## Access policy
 
-- Official upstream: `palmier-io/palmier-pro`
-- Custom fork: `mikefilsaime-groove/palmier-pro`
-- Baseline upstream commit: `5ddc2fa5dcab76f5f2cbe56f26c83c62302bff41`
-- `main` is reserved as a clean, fast-forward mirror of `upstream/main`.
-- `fal-integration` is the long-lived customization branch.
-- Palmier's Git history is preserved in full; this repository was cloned from the GitHub fork rather than initialized or populated manually.
+- Active ClickCampaigns `god-mode` unlocks the complete application.
+- Inactive or revoked GodMode permits opening, editing, saving, and exporting existing projects.
+- Inactive or revoked GodMode blocks new projects, generation, in-app AI, and mutating MCP tools.
+- A successful entitlement response supplies a signed Ed25519 seven-day offline lease.
+- The lease is accepted only for transport or server outages. An explicit inactive response, invalid token, invalid signature, wrong subject, wrong audience, invalid issue time, or expired lease fails closed.
+- Hosted CreatorStudio generation independently rechecks ClickCampaigns entitlement and may cache a positive result for no more than 60 seconds.
 
-## Findings carried forward from the original investigation
+## Authentication
 
-### Product and platform
+CreatorStudio Editor requires the authenticated ClickCampaigns GodMode MCP. The desktop creates a ten-minute pairing session and displays a human-readable code. The user explicitly asks the MCP to authorize that code; ClickCampaigns rechecks active GodMode and allows a one-time exchange for a dedicated `creatorstudio-editor` token. The desktop never reads, copies, or embeds the MCP's own credential.
 
-- Palmier Pro is a native Swift 6.2 macOS application built with SwiftUI, AppKit, and AVFoundation. It is not an Electron app.
-- Current upstream supports macOS 26 Tahoe on Apple Silicon.
-- The app exposes its MCP server at `http://127.0.0.1:19789/mcp` when Palmier Pro is running and MCP is enabled.
-- The previous task registered that endpoint globally in Codex and locally for Claude in the previous task's project. Claude configuration may need to be added again for this checkout when end-to-end MCP testing begins.
+The app-specific token, signed lease, subject, and lease verification key are stored in macOS Keychain. Disconnecting clears local credentials and attempts server-side token revocation. Desktop authentication does not open Keycloak, inspect browser cookies, or treat a dashboard page load as authentication.
 
-### Open-source versus closed-generation boundary
+CreatorStudio forwards the app-specific bearer token to ClickCampaigns for authoritative entitlement validation and caches only a positive result for no more than 60 seconds. CreatorStudio signs each CreatorStudio-to-Imager request with a 90-second Ed25519 service JWT. Imager verifies its signature, issuer, audience, role, key ID, and expiry. The private key exists only in CreatorStudio and the public key only in Imager; no shared service secret, MCP token, or administrative Fal key is embedded in the desktop app.
 
-- Palmier Pro's repository is licensed under GPLv3, so the released source can be used and modified in a private or redistributed fork subject to the license.
-- Palmier's README explicitly describes the editor, MCP server, and agent chat as open source, while describing generative-AI processing as closed source and requiring login and subscription.
-- The released desktop code contains the generation UI and orchestration, but the official model catalog and execution path depend on Palmier's hosted backend:
-  - `ModelCatalog` subscribes to the Convex query `models:list`.
-  - `GenerationBackend` uploads references through Palmier storage, submits `generations:submit`, and subscribes to `generations:byId` for job state.
-  - `GenerationService` creates placeholders, preprocesses references, records job metadata, monitors jobs, downloads results, installs media into the project, and resumes pending jobs.
-  - Agent/MCP generation in `ToolExecutor+Generate` currently requires Palmier sign-in, credits, and—where applicable—a paid plan.
-- Palmier already supports Anthropic and OpenAI BYOK for agent chat, including macOS Keychain storage, but it does not provide BYOK for image, video, or audio generation.
-- GitHub issue [#53, BYOK for generative features](https://github.com/palmier-io/palmier-pro/issues/53), requested this capability. A Palmier contributor said they were unlikely to support it at that time because the models span multiple providers and APIs, and the issue was closed.
+## Generation architecture
 
-The practical boundary is therefore not a prohibition on modifying the GPL application. It is the absence of Palmier's proprietary processing backend and an official local provider adapter. This fork will supply an independent Fal.ai path without attempting to reproduce Palmier's private backend.
+`GenerationCoordinator` is the provider-neutral owner used by both UI and MCP submissions. The existing placeholder, project-package installation, persistence, cancellation, timeline placement, notifications, and recovery path remains shared.
 
-## Architecture direction
+Provider precedence is strict:
 
-### Provider boundary
+1. When CreatorStudio reports an encrypted user Fal key, submit a durable CreatorStudio job.
+2. When CreatorStudio explicitly reports no key, use the user's local Keychain Fal key if present.
+3. When neither key exists, show an actionable connection prompt.
+4. When CreatorStudio is unavailable or reports an invalid connection, report that failure and do not silently switch credentials.
+5. ElevenLabs operations always use the user's local Keychain ElevenLabs credential.
 
-Introduce a small generation-provider abstraction between `GenerationService` and the current static `GenerationBackend`. It should own the provider-specific operations required by an asynchronous generation job:
+Generation metadata persists provider ID, credential source, model ID, catalog version, endpoint IDs, external job ID, provider request IDs, a credential-free request snapshot, and resumability. Credentials, bearer tokens, ciphertext, and expiring signed URLs are never written into `.palmier` packages.
 
-1. Resolve a catalog model to its provider and endpoint.
-2. Upload local reference media when the endpoint requires hosted URLs.
-3. Map Palmier's normalized generation input to the selected Fal endpoint's schema.
-4. Submit the Fal queue request.
-5. Monitor or poll queue status with cancellation and bounded retries.
-6. Normalize terminal success, failure, and output URLs for the existing finalization path.
-7. Resume pending provider jobs after a project is reopened.
+CreatorStudio and direct Fal queue jobs are durable and resume after relaunch. Interrupted synchronous ElevenLabs requests are marked non-resumable and must be submitted again.
 
-Palmier's existing Convex implementation should remain available as one provider path where practical. Fal-specific HTTP, queue, upload, and response logic should live in a dedicated directory such as `Sources/PalmierPro/Generation/Providers/Fal/`, not be distributed throughout SwiftUI views or agent tools.
+## Model authorities
 
-### Credentials
+### Video
 
-- Store the Fal API key in the macOS Keychain through the existing `KeychainStore` infrastructure.
-- Never persist the key in project files, `UserDefaults`, logs, analytics, MCP results, or Git.
-- Add a generation-provider settings surface distinct from chat-agent credentials, with add, replace, validate, and remove behavior.
-- Support a development-only `FAL_KEY` environment override only if it follows Palmier's established debug credential pattern and never changes release behavior.
+CreatorStudio owns the video model catalog, validation, ranking, pricing estimates, and Fal request adapters. The desktop **Help me choose** action creates a short-lived selector session and opens `https://creatorstudio.gg/video-selector?embed=1` in a `WKWebView`.
 
-### Model catalog
+The selector launch token is hashed at rest and exchanged once for a five-minute, HTTP-only, selector-scoped browser session. The webview never receives the desktop GodMode bearer token. CreatorStudio Editor validates the HTTPS origin, protocol version, selector session ID, model ID, and the model's presence in the current desktop catalog before applying `selection.confirmed`.
 
-The official catalog is remotely supplied by `models:list`, so Fal models need a source that does not depend on Palmier's backend. The first version should use a small, explicitly maintained Fal catalog whose entries map into Palmier's existing `CatalogEntry` and model-config types where those types accurately describe the endpoint.
+### Images
 
-Catalog entries need an explicit provider identity and Fal endpoint identifier. Provider selection must not be inferred from display names. Endpoint-specific parameter mapping should stay with the Fal adapter, while shared UI capabilities—durations, aspect ratios, references, source requirements, and output kind—should continue to drive Palmier's existing forms and validation.
+Imager is the image model authority. Its canonical versioned catalog and compiler cover active text-to-image, image editing, and One from Each models. CreatorStudio calls Imager through a service-authenticated internal API. Imager returns validated Fal endpoint/input manifests and never receives or returns a Fal key.
 
-Do not attempt to expose every Fal model in the first change. Start with one well-understood text-to-image endpoint and grow the catalog only after the provider path works end to end.
+### Audio
 
-### Persistence and recovery
+The first audio release uses current ElevenLabs APIs for text-to-speech, sound effects, text-to-music, and video-to-music. Voices and compatible TTS models are fetched directly with the user's Keychain credential. Dubbing, voice isolation, and speech-to-speech are deferred.
 
-`GenerationInput` in `Sources/PalmierPro/Models/MediaManifest.swift` currently persists `backendJobId` but not a provider identity. A multi-provider implementation must persist enough provider and endpoint metadata to route job recovery correctly after reopening a project.
+Local transcription remains available. Palmier-hosted cloud transcription and hosted-credit Agent fallback are removed. Direct user Anthropic and OpenAI keys and external Codex/Claude MCP connections remain supported.
 
-The persisted form should remain free of credentials. It should support queued, running, succeeded, failed, cancelled, and stale/unavailable jobs without silently switching providers or resubmitting work that could incur duplicate cost.
+## Hosted API contracts
 
-### Login, plan, and cost behavior
+ClickCampaigns:
 
-- Palmier-backed models should retain their existing account, credit, and paid-plan rules.
-- Fal-backed models should require a configured Fal key, not a Palmier login or Palmier credits.
-- The UI and MCP responses must identify the active provider and report that Fal usage is billed directly to the user's Fal account.
-- Palmier credit estimates cannot be reused as Fal prices. The first implementation may omit an estimate or label it unavailable; any later estimate must come from an explicit Fal pricing source and must not be treated as an exact bill.
+- `POST /api/godmode/v1/pairing-sessions`
+- `POST /api/godmode/v1/pairing-sessions/{id}/exchange`
+- `GET /api/godmode/v1/entitlement`
+- `GET /api/godmode/v1/lease-keys`
+- `POST /api/godmode/v1/logout`
+- MCP tool `authorize_creatorstudio_editor`
 
-### Shared UI and MCP behavior
+CreatorStudio:
 
-The same domain submission operation should serve both the generation UI and Agent/MCP tools. Provider selection, eligibility, validation, parameter mapping, persistence, and terminal errors must not be implemented separately in each surface.
+- `GET /api/godmode/v1/connection`
+- `GET /api/godmode/v1/models/{video|image}`
+- `POST /api/godmode/v1/requests/compile`
+- `POST /api/godmode/v1/uploads`
+- `POST /api/godmode/v1/uploads/{id}/complete`
+- `POST /api/godmode/v1/jobs`
+- `GET /api/godmode/v1/jobs/{id}`
+- `POST /api/godmode/v1/jobs/{id}/cancel`
+- `POST /api/godmode/v1/selector-sessions`
 
-MCP `list_models` should expose stable provider and endpoint metadata. `generate_image`, `generate_video`, and `generate_audio` should route Fal models without the current unconditional Palmier sign-in and credit checks, while retaining those checks for Palmier models. Results should continue to return placeholder asset IDs and remain observable through existing media inspection tools.
+Imager:
 
-## Likely code areas to modify
+- `GET /api/internal/godmode/v1/models/image`
+- `POST /api/internal/godmode/v1/requests/compile`
 
-| Area | Current files or directories | Expected work |
-| --- | --- | --- |
-| Credentials | `Sources/PalmierPro/Utilities/KeychainStore.swift`, `Sources/PalmierPro/Settings/` | Add Fal credential ownership and settings UI without exposing secrets. |
-| Catalog | `Sources/PalmierPro/Generation/Catalog/ModelCatalog.swift`, model config files, `ModelPreferences.swift` | Merge Palmier and Fal catalog entries, attach provider identity, and preserve stable model IDs. |
-| Provider runtime | `Sources/PalmierPro/Generation/GenerationBackend.swift`, new `Generation/Providers/` files | Extract a provider contract and implement Fal uploads, queue submission, status, cancellation, errors, and result normalization. |
-| Orchestration | `Sources/PalmierPro/Generation/GenerationService.swift` | Route by provider while reusing placeholders, preprocessing, downloads, project installation, notifications, and recovery. |
-| Input mapping | `Sources/PalmierPro/Generation/Submission/`, catalog parameter structs | Translate normalized image, video, and audio requests to endpoint-specific Fal schemas. |
-| Persistence | `Sources/PalmierPro/Models/MediaManifest.swift`, generation recovery in `GenerationService` | Persist provider-safe job identity and resume the correct provider without persisting credentials. |
-| Generation UI | `Sources/PalmierPro/Generation/UI/`, `Sources/PalmierPro/Settings/ModelsPane.swift` | Show provider/key state, remove Palmier-only gating for Fal models, and present provider-appropriate cost language. |
-| Agent and MCP | `Sources/PalmierPro/Agent/Tools/ToolExecutor+Generate.swift`, `ToolDefinitions.swift`, `AgentInstructions.swift` | Make catalog discovery and generation routing provider-aware while preserving shared domain behavior. |
-| Activity and analytics | `Sources/PalmierPro/Editor/ProjectActivityView.swift`, generation analytics | Avoid treating Fal work as Palmier credit activity and avoid leaking prompts, keys, or sensitive URLs. |
-| Tests | `Tests/PalmierProTests/Generation/`, `Tests/PalmierProTests/Agent/` | Add deterministic provider routing, mapping, error, cancellation, recovery, catalog, and MCP boundary coverage with mocked networking. |
+Catalog entries use stable model IDs, media kind, operation, capabilities, settings, catalog version, and estimated provider cost. Jobs use stable IDs, ownership checks, idempotency keys, and terminal states `queued`, `running`, `succeeded`, `failed`, or `cancelled`. Public errors use stable codes, safe messages, and retryability without raw provider responses or secrets.
 
-## Proposed implementation sequence
+## Code ownership
 
-1. Trace and characterize the current generation lifecycle with focused tests around the provider seam and persisted recovery data.
-2. Define the provider contract, provider-aware model identity, normalized job state, and secret-free persisted metadata.
-3. Add Keychain-backed Fal credentials and a minimal local catalog containing one text-to-image model.
-4. Complete one image-generation vertical slice through UI and MCP: validate, upload if needed, submit, monitor, download, persist, recover, and report errors.
-5. Add video generation, including source/reference preprocessing, long-running queue behavior, cancellation, and recovery.
-6. Add audio generation and endpoint-specific output handling.
-7. Expand the Fal catalog only after each model's capabilities, inputs, output shape, and validation are covered.
-8. Run Swift unit tests, build the app, exercise the MCP boundary in an isolated test project, and complete manual UI verification on macOS.
+| Capability | Primary desktop locations |
+| --- | --- |
+| MCP pairing and GodMode lease | `Sources/PalmierPro/Account/CreatorStudioSession.swift` |
+| Service configuration | `Sources/PalmierPro/Account/CreatorStudioConfiguration.swift` |
+| Keychain generation credentials | `Sources/PalmierPro/Generation/GenerationCredentialStore.swift` |
+| Provider selection and normalized jobs | `Sources/PalmierPro/Generation/GenerationCoordinator.swift` |
+| CreatorStudio gateway | `Sources/PalmierPro/Generation/CreatorStudioAPIClient.swift` |
+| Direct Fal queue | `Sources/PalmierPro/Generation/FalQueueClient.swift` |
+| ElevenLabs | `Sources/PalmierPro/Generation/ElevenLabsClient.swift` |
+| Live catalog mapping | `Sources/PalmierPro/Generation/Catalog/ModelCatalog.swift` |
+| Shared orchestration and recovery | `Sources/PalmierPro/Generation/GenerationService.swift` |
+| Selector webview | `Sources/PalmierPro/Generation/UI/VideoModelSelectorView.swift` |
+| Secret-free persistence | `Sources/PalmierPro/Models/MediaManifest.swift` |
+| UI/MCP generation | `Generation/UI`, `Agent/Tools`, and `Agent/MCP` |
 
-## Upstream synchronization strategy
+Hosted implementation branches are developed in clean worktrees so unrelated changes in the main ClickCampaigns, CreatorStudio, and Imager checkouts remain untouched.
 
-Never commit custom work directly to `main`, and never merge `fal-integration` back into `main`. Update in this order:
+## Upstream synchronization
+
+`main` is reserved as a clean fast-forward mirror of `upstream/main`. Custom work and releases remain on `fal-integration`.
 
 ```bash
 git switch main
@@ -128,20 +120,40 @@ git push origin main
 
 git switch fal-integration
 git merge main
-# Resolve conflicts, then build and test.
-git push origin fal-integration
+swift build
+swift test
 ```
 
-Use ordinary merge commits when bringing the published `main` history into `fal-integration`; this avoids routine force pushes. Rebase is acceptable only before shared custom commits exist or when explicitly chosen for a bounded cleanup.
+Use merge commits when bringing the published mirror into `fal-integration`. Keep provider-specific work in dedicated files, keep shared mutations centralized, and sync frequently. Never merge custom work back into `main`.
 
-To reduce recurring conflicts:
+## Releases
 
-- Keep Fal code in provider-specific files.
-- Change Palmier-owned types only where a stable provider seam or persisted provider identity is required.
-- Reuse existing submission and finalization operations instead of duplicating them.
-- Sync frequently, preferably after meaningful upstream releases rather than allowing a large divergence.
-- Run the relevant focused tests after conflict resolution, followed by `swift build` and the broader affected suite.
+`scripts/release.sh` releases only from `fal-integration`, produces `CreatorStudioEditor.dmg`, creates tags such as `creatorstudio-v1.0.0`, publishes explicitly to `mikefilsaime-groove/palmier-pro`, and updates `creatorstudio-appcast.xml`. Every update is authenticated with the CreatorStudio Editor Sparkle Ed25519 key.
 
-## Next implementation step
+`scripts/release.sh 0.1.0 --unsigned` produces an ad-hoc signed, unnotarized Apple Silicon preview for early distribution. The preview omits bundled speech and Metal effects because the current release machine has Command Line Tools but not full Xcode. Users must approve its first launch through Control-click **Open** or **Privacy & Security → Open Anyway**. A future Developer ID release uses the same source, feed, and versioning path with signing, notarization, and stapling enabled.
 
-The next task should be an architecture-and-test pass focused on `GenerationService`, `GenerationBackend`, `ModelCatalog`, `GenerationInput`, and `ToolExecutor+Generate`. Its deliverable should be a small provider contract plus tests that prove Palmier-backed behavior remains unchanged. After that seam is established, implement one Fal text-to-image endpoint as the first complete vertical slice.
+Upstream Palmier signing, telemetry, Clerk, Convex, and Sparkle credentials are not used.
+
+The source and signed DMG remain public under GPLv3. Entitlement is authoritative on hosted services; a redistributed local GPL build cannot be made tamper-proof.
+
+## Rollout and verification
+
+All hosted endpoints remain behind `CREATORSTUDIO_EDITOR_API_ENABLED`. Deployment order is Imager, CreatorStudio, then ClickCampaigns, followed by production rejection-path, catalog-version, secret-redaction, and representative-job checks before enabling the desktop client.
+
+Desktop verification requires full Xcode for macOS 26, then:
+
+```bash
+swift build
+swift test
+swift build --traits BundledSpeech
+```
+
+Manual verification covers sign-in/out, inactive safe mode, seven-day outage behavior, local Fal fallback, ElevenLabs credential lifecycle, selector exchange and confirmation, generation placement and undo, cancellation, relaunch recovery, export, MCP discovery/receipts, and opening existing `.palmier` projects.
+
+The home screen retains Palmier's original hosted sample-project source and `.palmier` compatibility. CreatorStudio Editor removes Palmier's first-run profile questionnaire; the editor tour and release notes remain independent flows.
+
+## Production configuration
+
+- Imager, CreatorStudio, and ClickCampaigns are deployed behind `CREATORSTUDIO_EDITOR_API_ENABLED` with server-only Ed25519 keys.
+- CreatorStudio-to-Imager service authentication, ClickCampaigns lease signing, and the CreatorStudio Editor Sparkle update key are configured independently.
+- The initial public release is an unsigned preview. A CreatorStudio Apple Developer ID identity and notarization profile remain optional future inputs for a standard double-click installation experience.

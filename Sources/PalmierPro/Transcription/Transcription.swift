@@ -4,14 +4,7 @@ import Speech
 
 enum TranscriptionProvider: String, CaseIterable, Sendable, Codable {
     case local
-    case cloud
-
-    var label: String {
-        switch self {
-        case .local: L10n.key("Local")
-        case .cloud: L10n.key("Cloud")
-        }
-    }
+    var label: String { L10n.key("Local") }
 }
 
 struct TranscriptionWord: Sendable, Codable {

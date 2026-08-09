@@ -7,16 +7,23 @@ struct MCPServerInstance: Sendable {
     let onInitialize: @Sendable (Client.Info) async -> Void
 }
 
+enum MCPClientSessionEvent: Sendable {
+    case connected(sessionID: String, client: MCPClientInfo)
+    case disconnected(sessionID: String)
+}
+
 /// HTTP server for MCP. Each client session gets its own `Server` + stateful transport
 actor MCPHTTPServer {
 
     private let port: UInt16
     private let makeServer: @Sendable () async -> MCPServerInstance
+    private let onSessionEvent: @Sendable (MCPClientSessionEvent) async -> Void
     private nonisolated(unsafe) var listener: NWListener?
 
     private struct Session {
         let server: Server
         let transport: StatefulHTTPServerTransport
+        let trackingID: String
         var lastUsed: ContinuousClock.Instant
         var toolListAnnounced = false
     }
@@ -28,9 +35,11 @@ actor MCPHTTPServer {
 
     init(
         port: UInt16,
+        onSessionEvent: @escaping @Sendable (MCPClientSessionEvent) async -> Void = { _ in },
         makeServer: @escaping @Sendable () async -> MCPServerInstance
     ) {
         self.port = port
+        self.onSessionEvent = onSessionEvent
         self.makeServer = makeServer
     }
 
@@ -58,12 +67,15 @@ actor MCPHTTPServer {
     func stop() {
         listener?.cancel()
         listener = nil
-        let closing = sessions.values.map(\.transport)
+        let closing = sessions
         sessions.removeAll()
         let fallbackTransport = fallback?.transport
         fallback = nil
         Task {
-            for transport in closing { await transport.disconnect() }
+            for session in closing.values {
+                await onSessionEvent(.disconnected(sessionID: session.trackingID))
+                await session.transport.disconnect()
+            }
             await fallbackTransport?.disconnect()
         }
     }
@@ -145,7 +157,9 @@ actor MCPHTTPServer {
             sessions[claimed] = session
             response = await session.transport.handleRequest(request)
             if request.method.uppercased() == "DELETE", response.statusCode == 200 {
-                sessions.removeValue(forKey: claimed)
+                if let removed = sessions.removeValue(forKey: claimed) {
+                    await onSessionEvent(.disconnected(sessionID: removed.trackingID))
+                }
             } else if request.method.uppercased() == "GET", response.statusCode == 200 {
                 announceToolList(sessionID: claimed)
             }
@@ -154,15 +168,26 @@ actor MCPHTTPServer {
                 validationPipeline: StandardValidationPipeline(validators: baseValidators() + [SessionValidator()])
             )
             let instance = await makeServer()
+            let trackingID = UUID().uuidString
             try? await instance.server.start(transport: transport) { clientInfo, _ in
                 await instance.onInitialize(clientInfo)
+                await self.onSessionEvent(.connected(
+                    sessionID: trackingID,
+                    client: MCPClientInfo(clientInfo)
+                ))
             }
             response = await transport.handleRequest(request)
             if let assigned = response.headers[HTTPHeaderName.sessionID] {
-                pruneIdleSessions()
-                sessions[assigned] = Session(server: instance.server, transport: transport, lastUsed: .now)
+                await pruneIdleSessions()
+                sessions[assigned] = Session(
+                    server: instance.server,
+                    transport: transport,
+                    trackingID: trackingID,
+                    lastUsed: .now
+                )
                 Log.mcp.notice("session started id=\(assigned) total=\(self.sessions.count)")
             } else {
+                await onSessionEvent(.disconnected(sessionID: trackingID))
                 await transport.disconnect()
             }
         } else {
@@ -217,19 +242,20 @@ actor MCPHTTPServer {
     }
 
     // Evicted clients recover transparently: their next request gets 404 and they re-initialize.
-    private func pruneIdleSessions() {
+    private func pruneIdleSessions() async {
         let cutoff = ContinuousClock.now - Self.sessionIdleLimit
         for (id, session) in sessions where session.lastUsed < cutoff {
-            evictSession(id: id)
+            await evictSession(id: id)
         }
         while sessions.count >= Self.sessionCountLimit,
               let oldest = sessions.min(by: { $0.value.lastUsed < $1.value.lastUsed }) {
-            evictSession(id: oldest.key)
+            await evictSession(id: oldest.key)
         }
     }
 
-    private func evictSession(id: String) {
+    private func evictSession(id: String) async {
         guard let session = sessions.removeValue(forKey: id) else { return }
+        await onSessionEvent(.disconnected(sessionID: session.trackingID))
         Log.mcp.notice("session evicted id=\(id)")
         Task { await session.transport.disconnect() }
     }

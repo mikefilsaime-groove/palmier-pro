@@ -8,6 +8,8 @@ struct AudioGenerationSubmission {
     let name: String?
     let folderId: String?
     let references: [MediaAsset]
+    let transientReferences: [GenerationUploadReference]
+    let temporaryFiles: [URL]
     let trimmedSourceOverride: TrimmedSource?
 
     @MainActor
@@ -71,6 +73,8 @@ struct AudioGenerationSubmission {
             assetType: .audio,
             placeholderDuration: placeholderDuration,
             references: references,
+            transientReferences: transientReferences,
+            temporaryFiles: temporaryFiles,
             trimmedSourceOverride: shouldExtractAudio ? nil : trimmedSourceOverride,
             name: name,
             folderId: folderId,
@@ -100,6 +104,8 @@ struct AudioGenerationSubmission {
         name: String? = nil,
         folderId: String? = nil,
         references: [MediaAsset] = [],
+        transientReferences: [GenerationUploadReference] = [],
+        temporaryFiles: [URL] = [],
         trimmedSourceOverride: TrimmedSource? = nil
     ) -> AudioGenerationSubmission {
         var genInput = baseInput
@@ -117,6 +123,8 @@ struct AudioGenerationSubmission {
             name: name,
             folderId: folderId,
             references: references,
+            transientReferences: transientReferences,
+            temporaryFiles: temporaryFiles,
             trimmedSourceOverride: trimmedSourceOverride
         )
     }

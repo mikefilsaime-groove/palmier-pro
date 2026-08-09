@@ -284,26 +284,12 @@ extension ToolExecutor {
 
     func transcriptionContext(
         _ args: [String: Any],
-        path: String,
-        estimatedCloudCost: () async -> Int
+        path: String
     ) async throws -> TranscriptionToolContext {
-        let account = AccountService.shared
-        let cost = await estimatedCloudCost()
-        let provider: TranscriptionProvider = Self.canUseCloudTranscription(
-            isSignedIn: account.isSignedIn,
-            remainingCredits: account.remainingCredits,
-            estimatedCost: cost
-        ) ? .cloud : .local
         return TranscriptionToolContext(
-            provider: provider,
-            preferredLocale: provider == .cloud ? nil : try await Self.parseLocale(args, path: path)
+            provider: .local,
+            preferredLocale: try await Self.parseLocale(args, path: path)
         )
-    }
-
-    static func canUseCloudTranscription(isSignedIn: Bool, remainingCredits: Int, estimatedCost: Int) -> Bool {
-        guard isSignedIn else { return false }
-        guard estimatedCost > 0 else { return true }
-        return remainingCredits >= estimatedCost
     }
 
     static func parseLocale(_ args: [String: Any], path: String) async throws -> Locale? {
@@ -313,19 +299,6 @@ extension ToolExecutor {
             throw ToolError("\(path): on-device transcription does not support language '\(lang)'.")
         }
         return match
-    }
-
-    static func validateCloudTranscriptionAccess(for request: EditorViewModel.CaptionRequest, in editor: EditorViewModel) async throws {
-        guard request.provider == .cloud else { return }
-        let cost = await editor.captionCloudCreditCost(for: request)
-        let account = AccountService.shared
-        guard account.isSignedIn else { throw ToolError("Sign in to use Cloud transcription.") }
-        guard cost > 0 else { return }
-        let remaining = account.remainingCredits
-        guard remaining > 0 else { throw ToolError("Add credits to use Cloud transcription.") }
-        if cost > remaining {
-            throw ToolError("\(CostEstimator.stableDescription(cost)) needed. Only \(remaining) remaining.")
-        }
     }
 
     func getTranscript(_ editor: EditorViewModel, _ args: [String: Any]) async throws -> ToolResult {
@@ -339,10 +312,7 @@ extension ToolExecutor {
         }
 
         let scope = try resolveTranscriptionScope(editor, args, path: "get_transcript")
-        let cloudRequest = scope.captionRequest(in: editor, provider: .cloud)
-        let context = try await transcriptionContext(args, path: "get_transcript") {
-            await editor.captionCloudCreditCost(for: cloudRequest)
-        }
+        let context = try await transcriptionContext(args, path: "get_transcript")
         let session = TranscriptSession(context: context, scope: scope, editor: editor)
         let transcript = try await timelineTranscript(editor, session: session)
         lastTranscriptSession = session
@@ -363,10 +333,6 @@ extension ToolExecutor {
         _ editor: EditorViewModel,
         session: TranscriptSession
     ) async throws -> TimelineTranscript {
-        if session.context.provider == .cloud {
-            let request = session.scope.captionRequest(in: editor, provider: .cloud)
-            try await Self.validateCloudTranscriptionAccess(for: request, in: editor)
-        }
         let (words, skipped) = try await timelineWords(editor, session: session)
         return TimelineTranscript(context: session.context, words: words, skipped: skipped)
     }
@@ -388,8 +354,6 @@ extension ToolExecutor {
 
         let transcripts = await transcriptsByURL(
             for: fragments,
-            fps: fps,
-            projectId: editor.projectId,
             context: session.context,
             isVideoByURL: isVideoByURL
         )
@@ -471,32 +435,19 @@ extension ToolExecutor {
 
     private func transcriptsByURL(
         for fragments: [TranscriptFragment],
-        fps: Int,
-        projectId: String?,
         context: TranscriptionToolContext,
         isVideoByURL: [URL: Bool]
     ) async -> (results: [URL: TranscriptionResult], skipped: [[String: Any]]) {
-        let rangesByURL = sourceRangesByURL(fragments, fps: fps)
         let outcomes = await withTaskGroup(of: (URL, Result<TranscriptionResult, Error>).self) { group in
             for url in Set(fragments.map(\.url)) {
                 group.addTask {
                     do {
-                        switch context.provider {
-                        case .local:
-                            return (url, .success(try await TranscriptCache.shared.transcript(
-                                for: url,
-                                isVideo: isVideoByURL[url] ?? true,
-                                range: nil,
-                                preferredLocale: context.preferredLocale
-                            )))
-                        case .cloud:
-                            return (url, .success(try await CloudTranscription.transcribe(
-                                fileURL: url,
-                                range: rangesByURL[url],
-                                preferredLocale: nil,
-                                projectId: projectId
-                            )))
-                        }
+                        return (url, .success(try await TranscriptCache.shared.transcript(
+                            for: url,
+                            isVideo: isVideoByURL[url] ?? true,
+                            range: nil,
+                            preferredLocale: context.preferredLocale
+                        )))
                     } catch {
                         return (url, .failure(error))
                     }
@@ -516,18 +467,6 @@ extension ToolExecutor {
             }
         }
         return (results, skipped)
-    }
-
-    private func sourceRangesByURL(_ fragments: [TranscriptFragment], fps: Int) -> [URL: ClosedRange<Double>] {
-        let rate = Double(fps)
-        guard rate > 0 else { return [:] }
-        var ranges: [URL: ClosedRange<Double>] = [:]
-        for url in Set(fragments.map(\.url)) {
-            let spans = fragments.filter { $0.url == url }.map { CaptionTranscriptMapper.sourceSpan(for: $0.clip) }
-            guard let lo = spans.map(\.start).min(), let hi = spans.map(\.end).max(), hi > lo else { continue }
-            ranges[url] = max(lo / rate - 1.0, 0)...(hi / rate + 1.0)
-        }
-        return ranges
     }
 
     private func timelineRows(from transcript: TranscriptionResult, clip: Clip, fps: Int) -> [(start: Int, end: Int, text: String, speaker: String?)] {

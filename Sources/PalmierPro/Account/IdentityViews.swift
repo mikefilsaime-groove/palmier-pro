@@ -84,7 +84,7 @@ struct UserAvatarButton: View {
             .hoverHighlight()
         }
         .buttonStyle(.plain)
-        .help(account.isSignedIn ? L10n.string("Account") : L10n.string("Sign in"))
+        .help(account.isSignedIn ? L10n.string("Account") : L10n.string("Connect GodMode MCP"))
         .popover(isPresented: $isPopoverPresented, arrowEdge: .bottom) {
             AccountPopoverCard()
         }

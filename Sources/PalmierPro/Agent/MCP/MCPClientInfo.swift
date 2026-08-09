@@ -31,6 +31,15 @@ struct MCPClientInfo: Equatable, Sendable {
         )
     }
 
+    var displayName: String {
+        let identity = [title, name].compactMap { $0 }.joined(separator: " ").lowercased()
+        if identity.contains("codex") { return "Codex" }
+        if identity.contains("claude") { return "Claude" }
+        if identity.contains("cursor") { return "Cursor" }
+        if let title, !title.isEmpty { return title }
+        return name
+    }
+
     var payload: Analytics.Payload {
         var payload: Analytics.Payload = [
             "name": name,

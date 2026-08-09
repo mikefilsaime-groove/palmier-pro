@@ -269,6 +269,8 @@ final class SettingsWindowController: NSWindowController {
     }
 }
 
+#if canImport(PreviewsMacros)
 #Preview {
     SettingsView()
 }
+#endif

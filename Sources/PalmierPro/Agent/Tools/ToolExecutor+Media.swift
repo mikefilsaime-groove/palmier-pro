@@ -44,7 +44,6 @@ extension ToolExecutor {
             if let path = folderPathString(entry.folderId, editor: editor) { a["folder"] = path }
             if pending, let status { a["generationStatus"] = status }
             if !idFilter.isEmpty, let status, status.hasPrefix("failed: ") {
-                feedbackState.recordError(String(status.dropFirst("failed: ".count)))
             }
             if let input = entry.generationInput, input.draft == true {
                 a["draft"] = true
@@ -53,6 +52,11 @@ extension ToolExecutor {
                 }
             }
             if let prompt = Self.truncatedPrompt(entry.generationInput?.prompt) { a["prompt"] = prompt }
+            if let input = entry.generationInput {
+                a["modelId"] = input.model
+                if let providerID = input.providerID { a["providerId"] = providerID }
+                if let externalJobID = input.externalJobID { a["providerJobId"] = externalJobID }
+            }
             assets.append(a)
         }
 

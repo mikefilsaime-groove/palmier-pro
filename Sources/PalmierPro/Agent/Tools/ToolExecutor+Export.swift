@@ -373,7 +373,7 @@ private enum ExportProjectMode: String {
         case .video: format?.displayName ?? "Video"
         case .xml: "XML"
         case .fcpxml: "FCPXML"
-        case .palmier: "Palmier Project"
+        case .palmier: "CreatorStudio Editor Project"
         }
     }
 }

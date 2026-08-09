@@ -116,7 +116,7 @@ struct ModelsPane: View {
                 .foregroundStyle(locked ? AppTheme.Text.tertiaryColor : AppTheme.Text.primaryColor)
             Spacer(minLength: AppTheme.Spacing.lg)
             if locked {
-                Button(L10n.string("Subscribe")) {
+                Button(L10n.string("Verify GodMode")) {
                     SettingsWindowController.shared.show(tab: .account)
                 }
                 .buttonStyle(.capsule(.secondary))

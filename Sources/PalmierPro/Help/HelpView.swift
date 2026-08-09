@@ -137,6 +137,8 @@ final class HelpWindowController: NSWindowController {
     }
 }
 
+#if canImport(PreviewsMacros)
 #Preview {
     HelpView()
 }
+#endif

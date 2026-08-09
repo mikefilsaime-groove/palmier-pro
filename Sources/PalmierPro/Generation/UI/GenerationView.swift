@@ -29,6 +29,7 @@ struct GenerationView: View {
     @State var videoDraft = false
     @State var upscaleSettings = UpscaleSettings()
     @State var showSettingsPopover = false
+    @State var showVideoModelSelector = false
     @FocusState private var isPromptFocused: Bool
 
     // Video frame references
@@ -167,6 +168,16 @@ struct GenerationView: View {
         .onChange(of: upscaleModels.isEmpty) { _, isEmpty in
             if isEmpty && selectedType == .upscale { selectedType = .video }
         }
+        .sheet(isPresented: $showVideoModelSelector) {
+            VideoModelSelectorView { selection in
+                guard let index = videoModels.firstIndex(where: { $0.id == selection.modelID }) else { return }
+                selectedVideoModelIndex = index
+                selectedResolution = selection.resolution
+                selectedDuration = selection.duration
+                selectedAspectRatio = selection.aspectRatio
+                generateAudio = selection.generateAudio
+            }
+        }
     }
 
     private var catalogLoadingView: some View {
@@ -193,12 +204,10 @@ struct GenerationView: View {
 
     private var bodyContent: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-            // Type tabs (left) · credits · activity · close (right)
+            // Type tabs (left) · close (right)
             HStack(spacing: AppTheme.Spacing.sm) {
                 typeTabs
                 Spacer()
-                CreditSummaryView(style: .compact)
-                ProjectActivityButton()
                 Button {
                     editFolderId = nil
                     editor.showGenerationPanel = false
@@ -452,6 +461,11 @@ struct GenerationView: View {
     private var inputToolbar: some View {
         HStack(spacing: AppTheme.Spacing.sm) {
             modelPicker
+            if selectedType == .video {
+                Button(L10n.string("Help me choose")) { showVideoModelSelector = true }
+                    .buttonStyle(.capsule(.secondary, size: .small))
+                    .disabled(!aiAllowed)
+            }
             if showsVideoInputModePicker { videoInputModePicker }
             if selectedType == .audio, audioModel.voices != nil {
                 voicePicker
@@ -464,7 +478,6 @@ struct GenerationView: View {
 
             Spacer(minLength: AppTheme.Spacing.xs)
 
-            costEstimateLabel
             submitButton
         }
         .frame(maxWidth: .infinity)

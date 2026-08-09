@@ -352,14 +352,10 @@ struct AgentPanelView: View {
         guard let error else { return nil }
         switch error {
         case .unauthenticated:
-            return ErrorCTA(title: L10n.string("Sign in")) {
+            return ErrorCTA(title: L10n.string("Connect GodMode MCP")) {
                 SettingsWindowController.shared.show(tab: .account)
             }
         case .insufficientCredits:
-            return ErrorCTA(title: L10n.string("View plans")) {
-                SettingsWindowController.shared.show(tab: .account)
-            }
-        case .unavailable(let model) where model.requiresPaidHostedPlan && !AccountService.shared.isPaid:
             return ErrorCTA(title: L10n.string("View plans")) {
                 SettingsWindowController.shared.show(tab: .account)
             }
@@ -375,15 +371,11 @@ struct AgentPanelView: View {
     private func errorMessage(_ error: AgentServiceError) -> String {
         switch error {
         case .unauthenticated:
-            L10n.string("Sign in to use AI chat.")
+            L10n.string("Connect ClickCampaigns GodMode MCP to use AI chat.")
         case .insufficientCredits(let message), .upstream(let message):
             message
         case .unavailable(let model):
-            if model.requiresPaidHostedPlan && !AccountService.shared.isPaid {
-                L10n.string("Subscribe or add your own API key to use this model.")
-            } else {
-                model.provider.chatPresentation.unavailableMessage
-            }
+            model.provider.chatPresentation.unavailableMessage
         case .refusal:
             L10n.string("The selected model refused this request. Revise the prompt and try again.")
         }
@@ -391,7 +383,15 @@ struct AgentPanelView: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        if service.canStream {
+        if service.isLoadingChatAccess {
+            VStack(spacing: AppTheme.Spacing.smMd) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(L10n.string("Checking chat connections…"))
+                    .font(.system(size: AppTheme.FontSize.sm))
+                    .foregroundStyle(AppTheme.Text.tertiaryColor)
+            }
+        } else if service.canStream {
             VStack(spacing: AppTheme.Spacing.smMd) {
                 Text(L10n.string("Ask anything, or start with:"))
                     .font(.system(size: AppTheme.FontSize.smMd, weight: AppTheme.FontWeight.medium))
@@ -415,61 +415,33 @@ struct AgentPanelView: View {
 
     @ViewBuilder
     private var missingKeyState: some View {
-        let account = AccountService.shared
         VStack(spacing: AppTheme.Spacing.mdLg) {
-            Button {
-                missingKeyPrimaryAction(account: account)
-            } label: {
-                HStack(spacing: AppTheme.Spacing.sm) {
-                    if let icon = missingKeyPrimaryIcon(account: account) {
-                        Image(systemName: icon)
-                    }
-                    Text(missingKeyPrimaryLabel(account: account))
-                }
-                    .font(.system(size: AppTheme.FontSize.mdLg, weight: .semibold))
-            }
-            .buttonStyle(.capsule(.prominent, size: .regular))
-
-            if !account.isSignedIn {
-                Text(L10n.string("First-time sign-ups only"))
+            if CreatorStudioSession.shared.canUseProtectedFeatures {
+                Text(L10n.string("Connect Codex or add your own OpenAI or Anthropic API key."))
                     .font(.system(size: AppTheme.FontSize.sm))
                     .foregroundStyle(AppTheme.Text.mutedColor)
+                    .multilineTextAlignment(.center)
+
+                Button(action: { SettingsWindowController.shared.show(tab: .agent) }) {
+                    Text(service.model.provider.chatPresentation.missingKeyLinkTitle)
+                }
+                .buttonStyle(.capsule(.prominent, size: .regular))
+            } else {
+                Text(L10n.string("Active ClickCampaigns GodMode is required for in-app chat."))
+                    .font(.system(size: AppTheme.FontSize.sm))
+                    .foregroundStyle(AppTheme.Text.mutedColor)
+                    .multilineTextAlignment(.center)
+
+                Button(L10n.string("Connect GodMode MCP")) {
+                    SettingsWindowController.shared.show(tab: .account)
+                }
+                .buttonStyle(.capsule(.prominent, size: .regular))
             }
 
-            Button(action: { SettingsWindowController.shared.show(tab: .agent) }) {
-                Text(missingKeyLinkLabel)
-                    .underline()
-                    .foregroundStyle(AppTheme.Text.secondaryColor)
-                    .padding(.horizontal, AppTheme.Spacing.sm)
-                    .padding(.vertical, AppTheme.Spacing.xxs)
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: AppTheme.FontSize.smMd, weight: .medium))
-            .hoverHighlight(cornerRadius: AppTheme.Radius.sm)
-        }
-    }
-
-    private var missingKeyLinkLabel: String {
-        service.model.provider.chatPresentation.missingKeyLinkTitle
-    }
-
-    private func missingKeyPrimaryLabel(account: AccountService) -> String {
-        if !account.isSignedIn { return L10n.string("Log in for 250 free credits") }
-        if !account.isPaid { return L10n.string("Subscribe") }
-        return L10n.string("Open Settings")
-    }
-
-    private func missingKeyPrimaryIcon(account: AccountService) -> String? {
-        if !account.isSignedIn { return "gift.fill" }
-        if !account.isPaid { return nil }
-        return "gearshape"
-    }
-
-    private func missingKeyPrimaryAction(account: AccountService) {
-        if !account.isSignedIn {
-            Task { await account.signInWithGoogle() }
-        } else {
-            SettingsWindowController.shared.show(tab: .account)
+            Text(L10n.string("Codex can power in-app chat and edit through CreatorStudio Editor MCP."))
+                .font(.system(size: AppTheme.FontSize.xs))
+                .foregroundStyle(AppTheme.Text.tertiaryColor)
+                .multilineTextAlignment(.center)
         }
     }
 
@@ -488,6 +460,17 @@ struct AgentPanelView: View {
     private var footer: some View {
         @Bindable var service = editor.agentService
         return VStack(spacing: AppTheme.Spacing.sm) {
+            if let mcpService = AppState.shared.mcpService,
+               !mcpService.connectedClientDisplayNames.isEmpty {
+                HStack(spacing: AppTheme.Spacing.xs) {
+                    Circle()
+                        .fill(AppTheme.Status.successColor)
+                        .frame(width: AppTheme.Spacing.xs, height: AppTheme.Spacing.xs)
+                    Text(L10n.string("Connected through MCP: \(mcpService.connectedClientDisplayNames.formatted())"))
+                        .font(.system(size: AppTheme.FontSize.xs))
+                        .foregroundStyle(AppTheme.Text.tertiaryColor)
+                }
+            }
             if !service.canStream && !service.messages.isEmpty {
                 missingKeyState
             }
@@ -646,14 +629,14 @@ private extension AgentProvider {
             (
                 L10n.string("using Anthropic API key"),
                 L10n.string("Streaming through your Anthropic API key (BYOK)"),
-                L10n.string("Add an Anthropic API key or credits to use this model."),
+                L10n.string("Add an Anthropic API key to use this model."),
                 L10n.string("or add your own Anthropic key")
             )
         case .openAI:
             (
                 L10n.string("using OpenAI API key"),
                 L10n.string("Streaming through your OpenAI API key (BYOK)"),
-                L10n.string("Add an OpenAI API key or credits to use this model."),
+                L10n.string("Add an OpenAI API key to use this model."),
                 L10n.string("or add your own OpenAI key")
             )
         }

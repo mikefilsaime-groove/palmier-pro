@@ -237,7 +237,7 @@ struct MusicTab: View {
                 .buttonStyle(.editorPrimary)
                 .focusable(false)
                 .disabled(!canGenerate || !account.aiAllowed)
-                .help(account.aiAllowed ? String() : L10n.string("Sign in to generate"))
+                .help(account.aiAllowed ? String() : L10n.string("Connect GodMode MCP to generate"))
 
                 agentMenu
             }

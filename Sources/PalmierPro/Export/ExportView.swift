@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 enum ExportDestination: String, CaseIterable, Identifiable {
     case video = "Video"
     case timeline = "Timeline"
-    case palmierProject = "Palmier Project"
+    case palmierProject = "CreatorStudio Editor Project"
 
     var id: String { rawValue }
 
@@ -12,7 +12,7 @@ enum ExportDestination: String, CaseIterable, Identifiable {
         switch self {
         case .video: L10n.key("Video")
         case .timeline: L10n.key("Timeline")
-        case .palmierProject: L10n.key("Palmier Project")
+        case .palmierProject: L10n.key("CreatorStudio Editor Project")
         }
     }
 }
@@ -625,12 +625,12 @@ struct ExportView: View {
     private var exportFormat: ExportFormat {
         switch destination {
         case .timeline: timelineFormat.exportFormat
-        case .palmierProject: .xml   // Palmier Project has its own path; never rendered.
+        case .palmierProject: .xml   // CreatorStudio Editor Project has its own path; never rendered.
         case .video: codec.exportFormat
         }
     }
 
-    /// Quick estimate for exporting a Palmier Project
+    /// Quick estimate for exporting a CreatorStudio Editor Project
     private nonisolated static func computePalmierSummary(
         entries: [MediaManifestEntry],
         projectURL: URL?

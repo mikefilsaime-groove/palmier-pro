@@ -6,9 +6,9 @@ import MCP
 @MainActor
 final class MCPService {
 
-    static let port: UInt16 = 19789
+    nonisolated static let port: UInt16 = 19789
 
-    private static let enabledKey = "io.palmier.pro.mcp.enabled"
+    private static let enabledKey = "gg.creatorstudio.editor.mcp.enabled"
 
     static var isEnabledPreference: Bool {
         get {
@@ -22,6 +22,11 @@ final class MCPService {
     }
 
     private(set) var isRunning: Bool = false
+    private var connectedClientsBySession: [String: MCPClientInfo] = [:]
+
+    var connectedClientDisplayNames: [String] {
+        Array(Set(connectedClientsBySession.values.map(\.displayName))).sorted()
+    }
 
     @ObservationIgnored
     private let projectProvider: () -> VideoProject?
@@ -33,10 +38,15 @@ final class MCPService {
     }
 
     func start() {
-        let httpServer = MCPHTTPServer(port: Self.port) { [self] in
+        let httpServer = MCPHTTPServer(
+            port: Self.port,
+            onSessionEvent: { [weak self] event in
+                await self?.applySessionEvent(event)
+            }
+        ) { [self] in
             let toolExecutor = await makeSessionToolExecutor()
             let server = Server(
-                name: "palmier-pro",
+                name: "creatorstudio-editor",
                 version: "1.0.0",
                 instructions: AgentInstructions.serverInstructions + AgentInstructions.projectNavigation,
                 capabilities: .init(
@@ -73,7 +83,17 @@ final class MCPService {
         }
         httpServer = nil
         isRunning = false
+        connectedClientsBySession.removeAll()
         Log.mcp.notice("http server stopped")
+    }
+
+    private func applySessionEvent(_ event: MCPClientSessionEvent) {
+        switch event {
+        case .connected(let sessionID, let client):
+            connectedClientsBySession[sessionID] = client
+        case .disconnected(let sessionID):
+            connectedClientsBySession.removeValue(forKey: sessionID)
+        }
     }
 
     nonisolated static func registerTools(on server: Server, executor: ToolExecutor) async {
@@ -101,14 +121,20 @@ final class MCPService {
         let resources = [
             Resource(
                 name: "Video Models",
-                uri: "palmier://models/video",
+                uri: "creatorstudio-editor://models/video",
                 description: "Available AI video generation models and their capabilities",
                 mimeType: "application/json"
             ),
             Resource(
                 name: "Image Models",
-                uri: "palmier://models/image",
+                uri: "creatorstudio-editor://models/image",
                 description: "Available AI image generation models and their capabilities",
+                mimeType: "application/json"
+            ),
+            Resource(
+                name: "Audio Models",
+                uri: "creatorstudio-editor://models/audio",
+                description: "Available ElevenLabs audio generation models and their capabilities",
                 mimeType: "application/json"
             ),
         ]
@@ -125,11 +151,14 @@ final class MCPService {
     @MainActor
     private static func readResource(uri: String) -> ReadResource.Result {
         switch uri {
-        case "palmier://models/video":
+        case "creatorstudio-editor://models/video":
             let json = ToolExecutor.jsonString(VideoModelConfig.allModels.map { ToolExecutor.videoModelInfo($0) }) ?? "[]"
             return .init(contents: [.text(json, uri: uri, mimeType: "application/json")])
-        case "palmier://models/image":
+        case "creatorstudio-editor://models/image":
             let json = ToolExecutor.jsonString(ImageModelConfig.allModels.map { ToolExecutor.imageModelInfo($0) }) ?? "[]"
+            return .init(contents: [.text(json, uri: uri, mimeType: "application/json")])
+        case "creatorstudio-editor://models/audio":
+            let json = ToolExecutor.jsonString(AudioModelConfig.allModels.map { ToolExecutor.audioModelInfo($0) }) ?? "[]"
             return .init(contents: [.text(json, uri: uri, mimeType: "application/json")])
         default:
             return .init(contents: [.text("Unknown resource: \(uri)", uri: uri)])

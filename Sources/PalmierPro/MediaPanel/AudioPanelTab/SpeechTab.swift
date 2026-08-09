@@ -7,7 +7,6 @@ struct SpeechTab: View {
         ZStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: AppTheme.Spacing.zero) {
-                    speakersSection
                     silenceSection
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -18,69 +17,6 @@ struct SpeechTab: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-
-    private var speakersSection: some View {
-        EditorPanelGroup(L10n.string("Speakers"), contentInsets: sectionContentInsets) {
-            InspectorRow(
-                label: L10n.string("Mark Speakers"),
-                labelHelp: L10n.string("Tints waveforms by speaker. Voices are matched across clips using cloud transcripts."),
-                labelAlignment: .leading,
-                onReset: { editor.markSpeakers = false }
-            ) {
-                Toggle(String(), isOn: Binding(
-                    get: { editor.markSpeakers },
-                    set: { editor.markSpeakers = $0 }
-                ))
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .labelsHidden()
-                .accessibilityLabel(L10n.string("Mark Speakers"))
-            }
-            Button(editor.projectSpeakers.isEmpty ? L10n.string("Identify Speakers") : L10n.string("Refresh")) {
-                editor.identifySpeakers(transcribeMissing: true)
-            }
-            .buttonStyle(.capsule(.secondary))
-            .disabled(editor.speakerIdentifyInFlight)
-            .help(L10n.string("Matches voices across clips, transcribing untranscribed timeline clips first (uses credits). Transcripts and voice fingerprints are cached, so re-runs are fast."))
-            if let error = editor.speakerIdentifyError {
-                Text(error)
-                    .font(.system(size: AppTheme.FontSize.xs))
-                    .foregroundStyle(AppTheme.Status.errorColor)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if !editor.projectSpeakers.isEmpty {
-                Text(L10n.string("Labels"))
-                    .font(.system(size: AppTheme.FontSize.xs, weight: AppTheme.FontWeight.medium))
-                    .foregroundStyle(AppTheme.Text.tertiaryColor)
-                    .padding(.top, AppTheme.Spacing.xs)
-            }
-            ForEach(editor.projectSpeakers) { speaker in
-                HStack(spacing: AppTheme.Spacing.sm) {
-                    ColorPicker(String(), selection: Binding(
-                        get: { editor.projectSpeakers.first(where: { $0.id == speaker.id })?.color ?? speaker.color },
-                        set: { editor.setSpeakerColor(id: speaker.id, color: $0) }
-                    ))
-                    .labelsHidden()
-                    .controlSize(.small)
-                    TextField(L10n.string("Name"), text: Binding(
-                        get: { editor.projectSpeakers.first(where: { $0.id == speaker.id })?.name ?? speaker.name },
-                        set: { editor.renameSpeaker(id: speaker.id, name: $0) }
-                    ))
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
-                    .font(.system(size: AppTheme.FontSize.sm))
-                    Button {
-                        editor.removeSpeaker(id: speaker.id)
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(AppTheme.Text.tertiaryColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help(L10n.string("Removes this label and tint. Identify recreates it if the voice is still present."))
-                }
-            }
-        }
     }
 
     private var silenceSection: some View {

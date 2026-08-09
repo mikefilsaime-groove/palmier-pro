@@ -83,6 +83,12 @@ struct AssetThumbnailView: View {
             Divider()
         }
         if ids.count == 1, ids.first == asset.id {
+            if asset.isGenerating {
+                Button(L10n.string("Cancel Generation"), role: .destructive) {
+                    editor.generationService.cancelGeneration(asset: asset, editor: editor)
+                }
+                Divider()
+            }
             if isMissing {
                 Button(L10n.string("Relink…")) { relinkFile() }
                 Divider()
@@ -261,7 +267,7 @@ struct AssetThumbnailView: View {
                 .font(.system(size: AppTheme.FontSize.xs, weight: .semibold))
                 .foregroundStyle(AppTheme.MediaOverlay.secondaryColor)
         }
-        .help(L10n.string("Palmier couldn't load this source file. It may be missing, on an ejected drive, or unreadable."))
+        .help(L10n.string("CreatorStudio Editor couldn't load this source file. It may be missing, on an ejected drive, or unreadable."))
     }
 
     private var isSelected: Bool {

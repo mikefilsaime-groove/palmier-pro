@@ -37,10 +37,7 @@ extension ToolExecutor {
                 throw ToolError("The previous get_transcript belongs to a different timeline. Call get_transcript again before remove_words.")
             }
             let scope = TranscriptionScope.automatic
-            let cloudRequest = scope.captionRequest(in: editor, provider: .cloud)
-            let context = try await transcriptionContext(args, path: "remove_words") {
-                await editor.captionCloudCreditCost(for: cloudRequest)
-            }
+            let context = try await transcriptionContext(args, path: "remove_words")
             session = TranscriptSession(context: context, scope: scope, editor: editor)
         }
         let transcript = try await timelineTranscript(editor, session: session)

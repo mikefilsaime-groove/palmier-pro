@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct HomeView: View {
-    @Bindable private var onboarding = OnboardingStore.shared
     @Bindable private var changelog = ChangelogStore.shared
 
     var body: some View {
@@ -24,15 +23,12 @@ struct HomeView: View {
         .task { await VisualModelLoader.shared.prepare() }
         .onAppear { changelog.checkForWhatsNew() }
         .overlay {
-            if !onboarding.isComplete {
-                OnboardingOverlay(onboarding: onboarding)
-            } else if let entry = changelog.pending {
+            if let entry = changelog.pending {
                 UpdateOverlay(entry: entry, changelogURL: changelog.changelogURL) {
                     withAnimation { changelog.dismiss() }
                 }
             }
         }
-        .animation(.easeInOut(duration: AppTheme.Anim.transition), value: onboarding.isComplete)
     }
 
     private var content: some View {
@@ -69,9 +65,9 @@ private struct WelcomeTitle: View {
 
     private var title: String {
         if let first = account.account?.user.firstName {
-            return L10n.string("Welcome to Palmier Pro, \(first)")
+            return L10n.string("Welcome to CreatorStudio Editor, \(first)")
         }
-        return L10n.string("Welcome to Palmier Pro")
+        return L10n.string("Welcome to CreatorStudio Editor")
     }
 }
 
@@ -88,13 +84,10 @@ private struct HomeSidebar: View {
             VStack(alignment: .leading, spacing: 2) {
                 if !account.isSignedIn && !account.isMisconfigured {
                     SidebarRowButton(
-                        label: account.isSigningIn
-                            ? L10n.string("Opening Google…")
-                            : L10n.string("Sign in with Google"),
+                        label: L10n.string("Connect GodMode MCP"),
                         systemImage: "person.crop.circle",
-                        action: { Task { await account.signInWithGoogle() } }
+                        action: { account.connectGodModeMCP() }
                     )
-                    .disabled(account.isSigningIn)
                 }
                 SidebarRowButton(
                     label: L10n.string("New Project"),

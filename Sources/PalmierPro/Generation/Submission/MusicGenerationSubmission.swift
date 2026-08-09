@@ -32,7 +32,8 @@ struct MusicGenerationSubmission {
         onPhase: @MainActor (Phase) -> Void = { _ in },
         onFinished: @escaping @MainActor () -> Void = {}
     ) async throws {
-        var videoURL: String?
+        var transientReferences: [GenerationUploadReference] = []
+        var temporaryFiles: [URL] = []
         if mode == .videoToMusic {
             onPhase(.exporting)
             let mp4 = try await TimelineRenderer.render(
@@ -46,12 +47,13 @@ struct MusicGenerationSubmission {
                 includeAudio: false,
                 preset: AVAssetExportPresetLowQuality
             )
-            defer { try? FileManager.default.removeItem(at: mp4) }
+            transientReferences = [GenerationUploadReference(
+                id: "timeline-span:\(source.startFrame):\(source.frameCount)",
+                kind: ClipType.video.rawValue,
+                localFileURL: mp4
+            )]
+            temporaryFiles = [mp4]
             onPhase(.uploading)
-            videoURL = try await GenerationBackend.uploadReference(
-                fileURL: mp4,
-                contentType: "video/mp4"
-            )
         }
 
         let durationSeconds = max(1, Int(spanSeconds.rounded()))
@@ -61,8 +63,7 @@ struct MusicGenerationSubmission {
             lyrics: nil,
             styleInstructions: nil,
             instrumental: false,
-            durationSeconds: durationSeconds,
-            videoURL: videoURL
+            durationSeconds: durationSeconds
         )
 
         var genInput = GenerationInput(
@@ -79,7 +80,12 @@ struct MusicGenerationSubmission {
         onPhase(.generating)
         let startFrame = source.startFrame
         let placeholderId = AudioGenerationSubmission.make(
-            genInput: genInput, model: model, params: params, name: name ?? model.displayName
+            genInput: genInput,
+            model: model,
+            params: params,
+            name: name ?? model.displayName,
+            transientReferences: transientReferences,
+            temporaryFiles: temporaryFiles
         ).submit(
             service: service,
             projectURL: projectURL,

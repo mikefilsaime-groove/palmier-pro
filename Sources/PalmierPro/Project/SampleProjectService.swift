@@ -33,7 +33,7 @@ final class SampleProjectService {
         }
     }
 
-    private var baseURL: URL? { BackendConfig.convexHttpURL }
+    private var baseURL: URL? { BackendConfig.sampleProjectBaseURL }
 
     // MARK: - Listing
 

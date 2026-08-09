@@ -221,7 +221,7 @@ final class TourController {
             TourStep(kind: .spotlight(.element(.skillsButton)), title: L10n.string("Skills"),
                      instruction: L10n.string("Open Skills to browse community playbooks, create your own, or add them to other agents.")),
             TourStep(kind: .outro, title: L10n.string("You're all set"),
-                     instruction: L10n.string("Start creating, or explore these to get the most out of Palmier Pro.")),
+                     instruction: L10n.string("Start creating, or explore these to get the most out of CreatorStudio Editor.")),
         ]
         return steps
     }

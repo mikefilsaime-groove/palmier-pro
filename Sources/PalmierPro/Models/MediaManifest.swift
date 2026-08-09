@@ -80,6 +80,14 @@ struct GenerationInput: Codable, Sendable, Equatable {
     var backendJobId: String?
     var outputIndex: Int?
     var resultURLs: [String]?
+    var providerID: GenerationProviderID?
+    var credentialSource: GenerationCredentialSource?
+    var catalogVersion: String?
+    var endpointIDs: [String]?
+    var externalJobID: String?
+    var providerRequests: [GenerationProviderRequest]?
+    var requestSnapshot: String?
+    var isJobResumable: Bool?
 }
 
 enum MediaSource: Codable, Sendable, Equatable {

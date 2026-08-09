@@ -4,7 +4,6 @@ import SwiftUI
 extension GenerationView {
 
     var canSubmit: Bool {
-        guard canAffordGeneration else { return false }
         if selectedType == .upscale {
             guard let source = upscaleSource,
                   source.sourceWidth != nil, source.sourceHeight != nil,
@@ -39,94 +38,11 @@ extension GenerationView {
         return !isPromptEmpty
     }
 
-    /// Live credit estimate for the current form state.
-    private var estimatedCost: Int? {
-        switch selectedType {
-        case .video:
-            return CostEstimator.videoCost(
-                model: videoModel,
-                durationSeconds: effectiveVideoSeconds,
-                resolution: effectiveResolution,
-                generateAudio: effectiveGenerateAudio,
-                draft: isDraftGeneration,
-                usesSourceVideo: usesSourceVideoInput
-            )
-        case .image:
-            let quality = imageModel.qualities != nil ? selectedQuality : nil
-            return CostEstimator.imageCost(
-                model: imageModel,
-                resolution: effectiveResolution,
-                quality: quality,
-                numImages: selectedNumImages
-            )
-        case .audio:
-            let duration: Int? = audioUsesSource
-                ? (audioSource == nil ? nil : effectiveAudioSourceSeconds)
-                : (audioModel.hasDurationControl ? selectedAudioDuration : nil)
-            return CostEstimator.audioCost(
-                model: audioModel,
-                prompt: trimmedPrompt,
-                durationSeconds: duration,
-                input: activeAudioInput
-            )
-        case .upscale:
-            return CostEstimator.upscaleCost(
-                model: upscaleModel,
-                durationSeconds: effectiveUpscaleSeconds,
-                settings: upscaleSettings,
-                sourceWidth: upscaleSource?.sourceWidth,
-                sourceHeight: upscaleSource?.sourceHeight,
-                sourceFPS: upscaleSource?.sourceFPS
-            )
-        }
-    }
-
-    private var remainingCredits: Int? {
-        guard let budget = AccountService.shared.budgetCredits else { return nil }
-        return max(0, budget - AccountService.shared.spentCredits)
-    }
-
-    private var hasInsufficientCredits: Bool {
-        guard let cost = estimatedCost, let left = remainingCredits else { return false }
-        return cost > left
-    }
-
-    private var canAffordGeneration: Bool {
-        guard let left = remainingCredits else { return true }
-        if let cost = estimatedCost { return cost <= left }
-        return left > 0
-    }
-
-    private var costHelpText: String {
-        guard let cost = estimatedCost else {
-            return L10n.string("Estimated cost. Actual billing may differ slightly.")
-        }
-        guard let left = remainingCredits else {
-            return CostEstimator.localizedEstimate(cost)
-        }
-        if cost > left {
-            return CostEstimator.localizedInsufficientCredits(cost, remaining: left)
-        }
-        return CostEstimator.localizedRemainingCredits(cost, remaining: left - cost)
-    }
-
-    var costEstimateLabel: some View {
-        HStack(spacing: AppTheme.Spacing.xs) {
-            Image(systemName: "dollarsign.circle.fill")
-                .font(.system(size: AppTheme.FontSize.sm))
-            Text(verbatim: estimatedCost.map { $0.formatted() } ?? "—")
-                .font(.system(size: AppTheme.FontSize.xs, weight: .medium))
-                .monospacedDigit()
-                .lineLimit(1)
-        }
-        .foregroundStyle(hasInsufficientCredits ? .red : AppTheme.Text.secondaryColor)
-        .help(costHelpText)
-    }
-
     var submitButton: some View {
         Button {
             if aiAllowed { submitGeneration() }
-            else if !account.isMisconfigured { Task { await account.signInWithGoogle() } }
+            else if account.isSignedIn { SettingsWindowController.shared.show(tab: .account) }
+            else if !account.isMisconfigured { account.connectGodModeMCP() }
         } label: {
             Image(systemName: aiAllowed ? "arrow.up" : "person.crop.circle")
                 .font(.system(size: AppTheme.FontSize.sm, weight: .bold))
@@ -138,14 +54,15 @@ extension GenerationView {
         .tint(AppTheme.Accent.primary)
         .accessibilityLabel(aiAllowed
             ? (selectedType == .upscale ? L10n.string("Upscale") : L10n.string("Generate"))
-            : L10n.string("Sign in"))
-        .disabled(aiAllowed ? !canSubmit : account.isMisconfigured || account.isSigningIn)
-        .opacity((aiAllowed ? canSubmit : !account.isMisconfigured && !account.isSigningIn) ? AppTheme.Opacity.opaque : AppTheme.Opacity.strong)
+            : (account.isSignedIn ? L10n.string("GodMode required") : L10n.string("Connect GodMode MCP")))
+        .disabled(aiAllowed ? !canSubmit : account.isMisconfigured)
+        .opacity((aiAllowed ? canSubmit : !account.isMisconfigured) ? AppTheme.Opacity.opaque : AppTheme.Opacity.strong)
         .help(aiAllowed
             ? (selectedType == .upscale ? L10n.string("Upscale source media") : String())
             : (account.isMisconfigured
                 ? L10n.string("AI is unavailable")
-                : account.isSigningIn ? L10n.string("Opening Google") : L10n.string("Sign in to generate")))
+                : account.isSignedIn ? L10n.string("Activate GodMode to generate")
+                : L10n.string("Connect GodMode MCP to generate")))
     }
 
     // MARK: - Actions

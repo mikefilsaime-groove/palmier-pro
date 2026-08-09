@@ -52,7 +52,7 @@ private struct ExportAnalyticsRun: Sendable {
         self.source = context.source
         self.projectId = context.projectId ?? "unknown"
         self.mode = "palmier"
-        self.format = "Palmier"
+        self.format = "CreatorStudio Editor"
         self.resolution = "n/a"
         self.timelineInput = context.timelineInput
         self.started = ContinuousClock.now
@@ -376,7 +376,7 @@ final class ExportService {
             setPhase(.exporting)
             Log.export.notice(
                 "palmier export start url=\(outputURL.lastPathComponent)",
-                telemetry: "Palmier project export started",
+                telemetry: "CreatorStudio Editor project export started",
                 data: [
                     "timelines": projectFile.timelines.count,
                     "clips": projectFile.timelines.reduce(0) { $0 + $1.tracks.reduce(0) { $0 + $1.clips.count } },
@@ -401,7 +401,7 @@ final class ExportService {
             setProgress(1)
             Log.export.notice(
                 "palmier export ok collected=\(report.collected.count) missing=\(report.missing.count)",
-                telemetry: "Palmier project export finished",
+                telemetry: "CreatorStudio Editor project export finished",
                 data: ["collected": report.collected.count, "missing": report.missing.count]
             )
             analytics.finish()
@@ -414,7 +414,7 @@ final class ExportService {
                 self.error = Log.detail(error)
                 Log.export.error(
                     "palmier export failed: \(Log.detail(error))",
-                    telemetry: "Palmier project export failed",
+                    telemetry: "CreatorStudio Editor project export failed",
                     data: ["error": Log.detail(error)]
                 )
                 analytics.fail()

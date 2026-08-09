@@ -36,7 +36,7 @@ struct GetTranscriptParamTests {
 
         #expect(scope == .track(id: "second-track"))
         #expect(scope.targets(in: h.editor).map(\.id) == ["second"])
-        #expect(scope.captionRequest(in: h.editor, provider: .cloud).sourceClipIds == ["second"])
+        #expect(scope.captionRequest(in: h.editor, provider: .local).sourceClipIds == ["second"])
     }
 
     @Test func explicitClipScopeCanChooseNonMasterMulticamMic() throws {
@@ -240,13 +240,6 @@ struct GetTranscriptParamTests {
         #expect(json?["wordFormat"] as? [String] == ["index", "text", "start"])
         #expect(json?["clips"] is [[String: Any]])
         #expect(json?["words"] == nil)
-    }
-
-    @Test func cloudTranscriptionRequiresCoveredUncachedCost() {
-        #expect(ToolExecutor.canUseCloudTranscription(isSignedIn: true, remainingCredits: 5, estimatedCost: 6) == false)
-        #expect(ToolExecutor.canUseCloudTranscription(isSignedIn: true, remainingCredits: 6, estimatedCost: 6) == true)
-        #expect(ToolExecutor.canUseCloudTranscription(isSignedIn: true, remainingCredits: 0, estimatedCost: 0) == true)
-        #expect(ToolExecutor.canUseCloudTranscription(isSignedIn: false, remainingCredits: 100, estimatedCost: 1) == false)
     }
 
     @Test func wordRowsSpeakerRunsAndSegments() async throws {

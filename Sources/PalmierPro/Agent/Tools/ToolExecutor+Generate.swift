@@ -5,11 +5,25 @@ extension ToolExecutor {
     private var canUsePaidModels: Bool { AccountService.shared.isPaid }
     private func modelAvailable(paidOnly: Bool) -> Bool { canUsePaidModels || !paidOnly }
 
+    private func generationReceipt(
+        placeholderID: String,
+        modelID: String,
+        note: String? = nil
+    ) -> ToolResult {
+        var receipt: [String: Any] = [
+            "placeholderId": placeholderID,
+            "providerJobId": NSNull(),
+            "modelId": modelID,
+            "status": "queued",
+        ]
+        if let note { receipt["note"] = note }
+        return .ok(Self.jsonString(receipt) ?? "Generation queued: \(placeholderID)")
+    }
+
     private func requirePlan(for modelId: String, paidOnly: Bool) throws {
         if paidOnly && !canUsePaidModels {
             throw ToolError(
-                "Model '\(modelId)' requires a paid plan. Pick a free model from list_models, "
-                + "or tell the user to subscribe."
+                "Model '\(modelId)' requires active ClickCampaigns GodMode."
             )
         }
     }
@@ -27,7 +41,7 @@ extension ToolExecutor {
             throw ToolError("Model catalog not loaded yet. Try again in a moment.")
         }
         guard let match = ids.first(where: { modelAvailable(paidOnly: $0.paidOnly) }) else {
-            throw ToolError("No \(kind) model is available on the current plan. Tell the user to subscribe.")
+            throw ToolError("No \(kind) model is available from the connected provider catalog.")
         }
         return match.id
     }
@@ -35,10 +49,10 @@ extension ToolExecutor {
     func generate(_ editor: EditorViewModel, _ args: [String: Any], type: ClipType) throws -> ToolResult {
         let prompt = args["prompt"] == nil ? "" : try args.requireString("prompt")
         guard AccountService.shared.isSignedIn else {
-            throw ToolError("Generation requires signing in to Palmier. Tell the user to sign in.")
+            throw ToolError("Generation requires the authenticated ClickCampaigns GodMode MCP connection.")
         }
         guard AccountService.shared.hasCredits else {
-            throw ToolError("Out of credits. Tell the user to add credits or subscribe to keep generating.")
+            throw ToolError("Active ClickCampaigns GodMode is required for generation.")
         }
         switch type {
         case .sequence:
@@ -52,7 +66,10 @@ extension ToolExecutor {
                 ) else {
                     throw ToolError("Asset '\(mediaRef)' is not a completed enhanceable draft.")
                 }
-                return .ok("Draft enhancement started. Placeholder asset ID: \(placeholderId)")
+                return generationReceipt(
+                    placeholderID: placeholderId,
+                    modelID: draft.generationInput?.model ?? "draft-enhancement"
+                )
             }
             let modelId = try args.string("model") ?? defaultModelId(
                 VideoModelConfig.allModels.map { (id: $0.id, paidOnly: $0.paidOnly) }, kind: "video")
@@ -158,7 +175,11 @@ extension ToolExecutor {
             editor: editor
         )
         let draftSummary = draft ? ", draft: true" : ""
-        return .ok("Edit started. Placeholder asset ID: \(placeholderId). Model: \(model.displayName), source: \(sourceAsset.name)\(draftSummary)")
+        return generationReceipt(
+            placeholderID: placeholderId,
+            modelID: model.id,
+            note: "Video edit queued from \(sourceAsset.name)\(draftSummary)."
+        )
     }
 
     private func generateVideoText(
@@ -236,7 +257,11 @@ extension ToolExecutor {
             ? ", refs: \(imageRefCount)img/\(videoRefCount)vid/\(audioRefCount)aud"
             : ""
         let draftSummary = draft ? ", draft: true" : ""
-        return .ok("Generation started. Placeholder asset ID: \(placeholderId). Model: \(model.displayName), duration: \(duration)s, aspect: \(aspectRatio)\(refSummary)\(draftSummary)")
+        return generationReceipt(
+            placeholderID: placeholderId,
+            modelID: model.id,
+            note: "Video queued at \(duration)s, \(aspectRatio)\(refSummary)\(draftSummary)."
+        )
     }
 
     private func referenceAssets(
@@ -294,15 +319,19 @@ extension ToolExecutor {
             projectURL: editor.projectURL,
             editor: editor
         )
-        return .ok("Generation started. Placeholder asset ID: \(placeholderId). Model: \(model.displayName), aspect: \(aspectRatio)")
+        return generationReceipt(
+            placeholderID: placeholderId,
+            modelID: model.id,
+            note: "Image queued at \(aspectRatio)."
+        )
     }
 
     func generateAudio(_ editor: EditorViewModel, _ args: [String: Any]) async throws -> ToolResult {
         guard AccountService.shared.isSignedIn else {
-            throw ToolError("Generation requires signing in to Palmier. Tell the user to sign in.")
+            throw ToolError("Generation requires the authenticated ClickCampaigns GodMode MCP connection.")
         }
         guard AccountService.shared.hasCredits else {
-            throw ToolError("Out of credits. Tell the user to add credits or subscribe to keep generating.")
+            throw ToolError("Active ClickCampaigns GodMode is required for generation.")
         }
         let modelId = try args.string("model") ?? defaultModelId(
             AudioModelConfig.allModels.map { (id: $0.id, paidOnly: $0.paidOnly) }, kind: "audio")
@@ -327,9 +356,9 @@ extension ToolExecutor {
         let sourceMediaRef = args.string("sourceMediaRef")
             ?? args.string("videoSourceMediaRef")
         var sourceAsset: MediaAsset?
-        var videoURL: String?
         var spanSeconds: Double?
         var placementStartFrame: Int?   // set when a timeline span is given -> auto-place on the timeline
+        var placementFrameCount: Int?
         if let ref = sourceMediaRef {
             let candidate = try asset(ref, editor: editor, label: "Source media")
             if args.string("sourceMediaRef") == nil, candidate.type != .video {
@@ -359,22 +388,13 @@ extension ToolExecutor {
             if let err = model.validate(spanSeconds: Double(end - start) / Double(max(1, editor.timeline.fps))) {
                 throw ToolError(err)
             }
-            let mp4 = try await TimelineRenderer.render(
-                timeline: editor.timeline, resolver: editor.mediaResolver,
-                resolveTimeline: editor.timelineResolver(),
-                missingMediaRefs: editor.missingMediaRefs,
-                startFrame: start, frameCount: end - start,
-                shortSide: 240, includeAudio: false,
-                preset: AVAssetExportPresetLowQuality
-            )
-            defer { try? FileManager.default.removeItem(at: mp4) }
-            videoURL = try await GenerationBackend.uploadReference(fileURL: mp4, contentType: "video/mp4")
             spanSeconds = Double(end - start) / Double(max(1, editor.timeline.fps))
             placementStartFrame = start
+            placementFrameCount = end - start
         }
 
         if model.acceptsSourceMedia && !model.inputs.contains(.text)
-            && sourceAsset == nil && videoURL == nil {
+            && sourceAsset == nil && placementStartFrame == nil {
             throw ToolError("Model '\(model.id)' needs source media. Provide sourceMediaRef.")
         }
 
@@ -391,7 +411,6 @@ extension ToolExecutor {
             styleInstructions: model.supportsStyleInstructions ? args.string("styleInstructions") : nil,
             instrumental: model.supportsInstrumental ? instrumental : false,
             durationSeconds: durationSeconds,
-            videoURL: videoURL,
             sourceURL: nil,
             targetLanguage: model.targetLanguages != nil
                 ? args.string("targetLanguage") : nil,
@@ -420,12 +439,34 @@ extension ToolExecutor {
                 ? AudioModelConfig.Input.video.rawValue
                 : AudioModelConfig.Input.audio.rawValue
         } else {
-            genInput.audioInput = videoURL == nil
+            genInput.audioInput = placementStartFrame == nil
                 ? AudioModelConfig.Input.text.rawValue
                 : AudioModelConfig.Input.video.rawValue
         }
         if let sourceAsset {
             genInput.setAudioSourceAsset(sourceAsset)
+        }
+
+        var transientReferences: [GenerationUploadReference] = []
+        var temporaryFiles: [URL] = []
+        if let startFrame = placementStartFrame, let frameCount = placementFrameCount {
+            let mp4 = try await TimelineRenderer.render(
+                timeline: editor.timeline,
+                resolver: editor.mediaResolver,
+                resolveTimeline: editor.timelineResolver(),
+                missingMediaRefs: editor.missingMediaRefs,
+                startFrame: startFrame,
+                frameCount: frameCount,
+                shortSide: 240,
+                includeAudio: false,
+                preset: AVAssetExportPresetLowQuality
+            )
+            transientReferences = [GenerationUploadReference(
+                id: "timeline-span:\(startFrame):\(frameCount)",
+                kind: ClipType.video.rawValue,
+                localFileURL: mp4
+            )]
+            temporaryFiles = [mp4]
         }
 
         let sourceReferences = sourceAsset.map { [$0] } ?? []
@@ -440,7 +481,11 @@ extension ToolExecutor {
             params: params,
             name: args.string("name"),
             folderId: folderId,
-            references: model.supportsReferences ? inputAssets.references : sourceReferences
+            references: model.supportsReferences
+                ? inputAssets.references
+                : (model.acceptsSourceMedia ? sourceReferences : []),
+            transientReferences: transientReferences,
+            temporaryFiles: temporaryFiles
         )
 
         if let startFrame = placementStartFrame, let sourceSpan = spanSeconds {
@@ -460,7 +505,11 @@ extension ToolExecutor {
                 )
                 return placeholderId
             }
-            return .ok("Generation started and placed on the timeline at frame \(startFrame). Placeholder asset ID: \(placeholderId). Model: \(model.displayName), \(model.category.label) (scored from video).")
+            return generationReceipt(
+                placeholderID: placeholderId,
+                modelID: model.id,
+                note: "Audio queued and placed at frame \(startFrame)."
+            )
         }
 
         let placeholderId = submission.submit(
@@ -468,8 +517,12 @@ extension ToolExecutor {
             projectURL: editor.projectURL,
             editor: editor
         )
-        let sourceNote = sourceAsset != nil || videoURL != nil ? " (from source media)" : ""
-        return .ok("Generation started. Placeholder asset ID: \(placeholderId). Model: \(model.displayName), \(model.category.label)\(sourceNote). Place it with add_clips.")
+        let sourceNote = sourceAsset != nil || placementStartFrame != nil ? " (from source media)" : ""
+        return generationReceipt(
+            placeholderID: placeholderId,
+            modelID: model.id,
+            note: "\(model.category.label) queued\(sourceNote). Place it with add_clips when ready."
+        )
     }
 
     func upscaleMedia(_ editor: EditorViewModel, _ args: [String: Any]) throws -> ToolResult {
@@ -485,10 +538,10 @@ extension ToolExecutor {
             throw ToolError("Source FPS is not available yet. Poll get_media until the asset is ready.")
         }
         guard AccountService.shared.isSignedIn else {
-            throw ToolError("Upscale requires signing in to Palmier. Tell the user to sign in.")
+            throw ToolError("Upscale requires the authenticated ClickCampaigns GodMode MCP connection.")
         }
         guard AccountService.shared.hasCredits else {
-            throw ToolError("Out of credits. Tell the user to add credits or subscribe to keep generating.")
+            throw ToolError("No connected generation provider supports upscale.")
         }
 
         let available = UpscaleModelConfig.models(for: asset.type)

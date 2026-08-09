@@ -7,18 +7,18 @@ struct MCPInstructionsPane: View {
     private var mcpEndpoint: String { "http://127.0.0.1:\(MCPService.port)/mcp" }
 
     private var claudeCodeCommand: String {
-        "claude mcp add --transport http palmier-pro \(mcpEndpoint)"
+        "claude mcp add --transport http creatorstudio-editor \(mcpEndpoint)"
     }
 
     private var codexCommand: String {
-        "codex mcp add palmier-pro --url \(mcpEndpoint)"
+        "codex mcp add creatorstudio-editor --url \(mcpEndpoint)"
     }
 
     private var cursorJSONConfig: String {
         """
         {
           "mcpServers": {
-            "palmier-pro": {
+            "creatorstudio-editor": {
               "type": "http",
               "url": "\(mcpEndpoint)"
             }
@@ -33,13 +33,13 @@ struct MCPInstructionsPane: View {
             let data = try? JSONSerialization.data(withJSONObject: config, options: [.sortedKeys]),
             let encoded = data.base64EncodedString().addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         else { return nil }
-        return URL(string: "cursor://anysphere.cursor-deeplink/mcp/install?name=palmier-pro&config=\(encoded)")
+        return URL(string: "cursor://anysphere.cursor-deeplink/mcp/install?name=creatorstudio-editor&config=\(encoded)")
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xxl) {
-                Text(L10n.string("Connect an external agent to inspect and edit the open Palmier Pro project."))
+                Text(L10n.string("Connect an external agent to inspect and edit the open CreatorStudio Editor project."))
                     .font(.system(size: AppTheme.FontSize.smMd, weight: AppTheme.FontWeight.regular))
                     .foregroundStyle(AppTheme.Text.secondaryColor)
                     .fixedSize(horizontal: false, vertical: true)
@@ -96,7 +96,7 @@ struct MCPInstructionsPane: View {
         agentSection(
             .cursor,
             name: "Cursor",
-            description: L10n.string("Install the Palmier Pro MCP server in Cursor."),
+            description: L10n.string("Install the CreatorStudio Editor MCP server in Cursor."),
             action: (L10n.string("Install in Cursor"), openCursor)
         ) {
             ManualFallback(
@@ -110,7 +110,7 @@ struct MCPInstructionsPane: View {
         agentSection(
             .claude,
             name: "Claude Desktop",
-            description: L10n.string("Install the bundled Palmier Pro connector."),
+            description: L10n.string("Install the bundled CreatorStudio Editor connector."),
             action: (L10n.string("Install in Claude Desktop"), openClaudeDesktopBundle)
         ) {
             EmptyView()
@@ -199,7 +199,7 @@ struct MCPInstructionsPane: View {
 
     private func openClaudeDesktopBundle() {
         guard let bundleURL = claudeDesktopBundleURL else {
-            claudeInstallError = "The Palmier Pro connector could not be found. Reinstall Palmier Pro, then try again."
+            claudeInstallError = "The CreatorStudio Editor connector could not be found. Reinstall CreatorStudio Editor, then try again."
             return
         }
         guard let claudeURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.anthropic.claudefordesktop") else {
@@ -214,7 +214,7 @@ struct MCPInstructionsPane: View {
         ) { _, error in
             guard error != nil else { return }
             Task { @MainActor in
-                claudeInstallError = "Claude Desktop could not open the Palmier Pro connector. Update Claude Desktop, then try again."
+                claudeInstallError = "Claude Desktop could not open the CreatorStudio Editor connector. Update Claude Desktop, then try again."
             }
         }
     }
@@ -315,8 +315,10 @@ private struct CopyButton: View {
     }
 }
 
+#if canImport(PreviewsMacros)
 #Preview {
     MCPInstructionsPane()
         .frame(width: AppTheme.Settings.contentMaxWidth, height: AppTheme.Settings.skillDetailMinHeight)
         .background(AppTheme.Background.surfaceColor)
 }
+#endif

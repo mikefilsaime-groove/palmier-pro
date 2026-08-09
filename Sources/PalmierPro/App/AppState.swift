@@ -186,6 +186,7 @@ final class AppState {
     /// Creates a new project in the storage folder; errors if the name is invalid or already taken.
     @discardableResult
     func createProject(named name: String) async throws -> VideoProject {
+        try await CreatorStudioSession.shared.require(.newProject)
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let base = trimmed.isEmpty ? Project.defaultProjectName : trimmed
         guard !base.contains("/"), !base.contains("\\"), base != ".", base != ".." else {
@@ -219,6 +220,10 @@ final class AppState {
     }
 
     func createProjectInteractively() {
+        guard CreatorStudioSession.shared.canUseProtectedFeatures else {
+            SettingsWindowController.shared.show(tab: .account)
+            return
+        }
         Telemetry.beginOperation("save_panel", data: ["flow": "project_create"])
         let panel = NSSavePanel()
         panel.allowedContentTypes = [Self.projectContentType]

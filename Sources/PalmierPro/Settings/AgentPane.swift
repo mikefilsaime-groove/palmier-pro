@@ -32,6 +32,20 @@ struct AgentPane: View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.smMd) {
             mcpHeader
             mcpStatusRow
+            mcpClientStatus
+        }
+    }
+
+    @ViewBuilder
+    private var mcpClientStatus: some View {
+        if let service = appState.mcpService, service.isRunning {
+            if service.connectedClientDisplayNames.isEmpty {
+                Text(L10n.string("No active MCP client."))
+                    .foregroundStyle(AppTheme.Text.tertiaryColor)
+            } else {
+                Text(L10n.string("Connected clients: \(service.connectedClientDisplayNames.formatted())"))
+                    .foregroundStyle(AppTheme.Text.secondaryColor)
+            }
         }
     }
 

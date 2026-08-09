@@ -1,3 +1,3 @@
 enum AppIdentity {
-    static let name = "Palmier Pro"
+    static let name = "CreatorStudio Editor"
 }

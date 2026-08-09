@@ -55,7 +55,6 @@ final class ToolExecutor {
         mcpClientInfo = clientInfo
     }
 
-    var feedbackState = FeedbackState()
     var lastTranscriptSession: TranscriptSession?
 
     func execute(
@@ -94,6 +93,20 @@ final class ToolExecutor {
             return result
         }
         activateMCPSessionIfNeeded(source: origin.source, toolName: tool.rawValue)
+
+        if !CreatorStudioSession.shared.canUseProtectedFeatures,
+           !Self.allowedWithoutGodMode(tool) {
+            let result = ToolResult.error("Active ClickCampaigns GodMode is required for mutating MCP and Agent tools.")
+            captureToolAnalytics(
+                toolName: tool.rawValue,
+                origin: origin,
+                projectId: editor?.projectId,
+                result: result,
+                started: started,
+                failureReason: "godmode_required"
+            )
+            return result
+        }
 
         // project tools act on AppState before editor is available
         switch tool {
@@ -152,7 +165,6 @@ final class ToolExecutor {
         } catch {
             result = .error(error.localizedDescription)
         }
-        feedbackState.record(result, for: tool)
         let elapsed = started.duration(to: .now).seconds
         let telemetry = result.isError ? "Agent tool failed" : "Agent tool finished"
         let payload: Telemetry.Payload = [
@@ -209,13 +221,24 @@ final class ToolExecutor {
         guard session !== frontmost else { return nil }
         let sessionName = session?.displayName ?? boundProject?.displayName ?? "no project"
         let frontmostName = frontmost?.displayName ?? "no project"
-        return "This session is on '\(sessionName)', but '\(frontmostName)' is active in Palmier Pro. Activate '\(sessionName)' or call manage_project with action='open' before making changes."
+        return "This session is on '\(sessionName)', but '\(frontmostName)' is active in CreatorStudio Editor. Activate '\(sessionName)' or call manage_project with action='open' before making changes."
     }
 
     private static func canReadInactiveProject(_ tool: ToolName) -> Bool {
         switch tool {
         case .getTimeline, .inspectTimeline, .getMedia, .inspectMedia, .searchMedia,
-             .getMulticam, .getTranscript, .detectBeats, .inspectColor, .listModels, .sendFeedback:
+             .getMulticam, .getTranscript, .detectBeats, .inspectColor, .listModels:
+            true
+        default:
+            false
+        }
+    }
+
+    private static func allowedWithoutGodMode(_ tool: ToolName) -> Bool {
+        switch tool {
+        case .manageProject, .getTimeline, .inspectTimeline, .exportProject, .manageExports,
+             .getMedia, .inspectMedia, .searchMedia, .getMulticam, .getTranscript,
+             .detectBeats, .inspectColor, .listModels, .readSkill:
             true
         default:
             false
@@ -323,7 +346,6 @@ final class ToolExecutor {
         case .importMedia:   return try await importMedia(editor, args)
         case .listModels:    return listModels(args)
         case .organizeMedia: return try organizeMedia(editor, args)
-        case .sendFeedback:  return try await sendFeedback(editor, args)
         case .setProjectSettings: return try setProjectSettings(editor, args)
         case .createTimeline:     return try createTimeline(editor, args)
         case .setActiveTimeline:  return try setActiveTimeline(editor, args)

@@ -411,6 +411,7 @@ enum AppTheme {
 
     enum Settings {
         static let sidebarWidth: CGFloat = 220
+        static let popoverWidth: CGFloat = 280
         static let contentMaxWidth: CGFloat = 640
         static let creditInputWidth: CGFloat = 56
         static let skillsSearchWidth: CGFloat = 260

@@ -99,10 +99,6 @@ enum AgentModel: String, CaseIterable, Codable, Sendable {
 
     var maxOutputTokens: Int { 64_000 }
 
-    var requiresPaidHostedPlan: Bool {
-        self == .fable5 || self == .sol
-    }
-
     static func persisted(_ rawValue: String) -> AgentModel? {
         rawValue == "claude-opus-4-8" ? .opus5 : AgentModel(rawValue: rawValue)
     }
@@ -143,7 +139,7 @@ enum AgentReasoningPreferences {
 
 enum AgentRoute: Equatable, Sendable {
     case direct
-    case hosted
+    case codex
     case unavailable
 }
 
@@ -151,12 +147,11 @@ enum AgentRouting {
     static func route(
         model: AgentModel,
         credentials: AgentCredentialSnapshot,
-        hasHostedCredits: Bool,
-        hasPaidPlan: Bool
+        codexAvailable: Bool
     ) -> AgentRoute {
         if !credentials[model.provider].isEmpty { return .direct }
-        if model.requiresPaidHostedPlan && !hasPaidPlan { return .unavailable }
-        return hasHostedCredits ? .hosted : .unavailable
+        if model.provider == .openAI, codexAvailable { return .codex }
+        return .unavailable
     }
 }
 

@@ -18,17 +18,16 @@ enum MainMenuBuilder {
     // MARK: - App menu
 
     private static func appMenu() -> NSMenuItem {
-        let item = NSMenuItem()
+        let item = NSMenuItem(title: AppIdentity.name, action: nil, keyEquivalent: "")
         let menu = NSMenu(title: AppIdentity.name)
-        menu.addItem(withTitle: L10n.string("About Palmier Pro"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        menu.addItem(.separator())
+        menu.addItem(withTitle: L10n.string("About CreatorStudio Editor"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         let updatesItem = NSMenuItem(title: L10n.string("Check for Updates…"), action: #selector(Updater.checkForUpdates(_:)), keyEquivalent: "")
         updatesItem.target = Updater.shared
         menu.addItem(updatesItem)
         menu.addItem(.separator())
         menu.addItem(withTitle: L10n.string("Settings…"), action: #selector(AppDelegate.showSettings(_:)), keyEquivalent: ",")
         menu.addItem(.separator())
-        menu.addItem(withTitle: L10n.string("Quit Palmier Pro"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: L10n.string("Quit CreatorStudio Editor"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.submenu = menu
         return item
     }
@@ -175,8 +174,6 @@ enum MainMenuBuilder {
         menu.addItem(.separator())
         menu.addItem(withTitle: L10n.string("Keyboard Shortcuts"), action: #selector(AppDelegate.showKeyboardShortcuts(_:)), keyEquivalent: "?")
         menu.addItem(withTitle: L10n.string("MCP Instructions"), action: #selector(AppDelegate.showMCPInstructions(_:)), keyEquivalent: "")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: L10n.string("Send Feedback…"), action: #selector(AppDelegate.showFeedback(_:)), keyEquivalent: "")
         item.submenu = menu
         return item
     }
