@@ -9,6 +9,17 @@ actor GenerationCoordinator {
     static let shared = GenerationCoordinator()
 
     func selectProvider(modelID: String) async throws -> GenerationProviderSelection {
+        if modelID == CodexImageGeneration.modelID {
+            try await CreatorStudioSession.shared.require(.generation, refreshBeforeLocalGeneration: true)
+            let available: Bool
+            do {
+                available = try await CodexAppServer.image.supportsImageGeneration()
+            } catch {
+                throw GenerationCoordinatorError.codexImageUnavailable(error.localizedDescription)
+            }
+            return try Self.codexProviderSelection(imageGenerationAvailable: available)
+        }
+
         if modelID.hasPrefix("elevenlabs/") {
             try await CreatorStudioSession.shared.require(.generation, refreshBeforeLocalGeneration: true)
             guard await GenerationCredentialStore.credential(.elevenLabs) != nil else {
@@ -44,14 +55,23 @@ actor GenerationCoordinator {
         }
     }
 
+    static func codexProviderSelection(imageGenerationAvailable: Bool) throws -> GenerationProviderSelection {
+        guard imageGenerationAvailable else {
+            throw GenerationCoordinatorError.codexImageUnavailable(
+                "Update Codex and sign in to use GPT Image 2, or select a Fal.ai image model."
+            )
+        }
+        return GenerationProviderSelection(provider: .codexImage, credentialSource: .codexSubscription)
+    }
+
     func uploadReference(
         fileURL: URL,
         contentType: String,
         kind: String,
         selection: GenerationProviderSelection
     ) async throws -> GenerationUploadReference {
-        guard selection.provider != .elevenLabs else {
-            throw GenerationCoordinatorError.unsupportedModel("ElevenLabs reference upload")
+        guard selection.provider != .elevenLabs, selection.provider != .codexImage else {
+            throw GenerationCoordinatorError.unsupportedModel("Local provider reference upload")
         }
         return try await CreatorStudioAPIClient.upload(fileURL: fileURL, contentType: contentType, mediaKind: kind)
     }
@@ -79,6 +99,26 @@ actor GenerationCoordinator {
         let snapshot = try Self.snapshot(body)
 
         switch selection.provider {
+        case .codexImage:
+            guard case .image(let imageParams) = params else {
+                throw GenerationCoordinatorError.unsupportedModel(modelID)
+            }
+            let localReferences = references.compactMap(\.localFileURL)
+            guard localReferences.count == references.count else {
+                throw GenerationCoordinatorError.invalidProviderResponse
+            }
+            let reference = preparedReference ?? Self.codexReference(
+                modelID: modelID,
+                catalogVersion: catalogVersion,
+                snapshot: snapshot
+            )
+            let output = try await CodexAppServer.image.generateImage(
+                prompt: imageParams.prompt,
+                aspectRatio: imageParams.aspectRatio,
+                quality: imageParams.quality,
+                referenceImages: localReferences
+            )
+            return GenerationJobUpdate(reference: reference, state: .succeeded, resultURLs: [output], error: nil)
         case .creatorStudioFal:
             let idempotencyKey = UUID().uuidString
             let job = try await CreatorStudioAPIClient.submit(body, idempotencyKey: idempotencyKey)
@@ -146,7 +186,7 @@ actor GenerationCoordinator {
         references: [GenerationUploadReference],
         selection: GenerationProviderSelection
     ) async throws -> GenerationJobReference? {
-        guard selection.provider == .elevenLabs else { return nil }
+        guard selection.provider == .elevenLabs || selection.provider == .codexImage else { return nil }
         let operation = try await MainActor.run {
             guard let operation = ModelCatalog.shared.operation(for: modelID) else {
                 throw GenerationCoordinatorError.unsupportedModel(modelID)
@@ -160,15 +200,21 @@ actor GenerationCoordinator {
             references: references
         )
         let catalogVersion = await MainActor.run { ModelCatalog.shared.catalogVersion(for: modelID) }
-        return Self.elevenLabsReference(
-            modelID: modelID,
-            catalogVersion: catalogVersion,
-            snapshot: try Self.snapshot(body)
-        )
+        let snapshot = try Self.snapshot(body)
+        return switch selection.provider {
+        case .codexImage:
+            Self.codexReference(modelID: modelID, catalogVersion: catalogVersion, snapshot: snapshot)
+        case .elevenLabs:
+            Self.elevenLabsReference(modelID: modelID, catalogVersion: catalogVersion, snapshot: snapshot)
+        case .creatorStudioFal, .localFal:
+            nil
+        }
     }
 
     func refresh(_ reference: GenerationJobReference) async throws -> GenerationJobUpdate {
         switch reference.provider {
+        case .codexImage:
+            throw GenerationCoordinatorError.interruptedNonResumableRequest(.codexImage)
         case .creatorStudioFal:
             return Self.update(try await CreatorStudioAPIClient.job(id: reference.jobID), reference: reference)
         case .localFal:
@@ -207,12 +253,14 @@ actor GenerationCoordinator {
             }
             return GenerationJobUpdate(reference: reference, state: .succeeded, resultURLs: Self.unique(urls), error: nil)
         case .elevenLabs:
-            throw GenerationCoordinatorError.interruptedNonResumableRequest
+            throw GenerationCoordinatorError.interruptedNonResumableRequest(.elevenLabs)
         }
     }
 
     func cancel(_ reference: GenerationJobReference) async throws {
         switch reference.provider {
+        case .codexImage:
+            break
         case .creatorStudioFal:
             _ = try await CreatorStudioAPIClient.cancel(jobID: reference.jobID)
         case .localFal:
@@ -301,6 +349,24 @@ actor GenerationCoordinator {
         case "elevenlabs/music": "v1/music"
         default: "v1/text-to-speech"
         }
+    }
+
+    static func codexReference(
+        modelID: String,
+        catalogVersion: String?,
+        snapshot: String
+    ) -> GenerationJobReference {
+        GenerationJobReference(
+            jobID: UUID().uuidString,
+            provider: .codexImage,
+            credentialSource: .codexSubscription,
+            modelID: modelID,
+            catalogVersion: catalogVersion,
+            endpointIDs: [CodexImageGeneration.endpointID],
+            providerRequests: [],
+            requestSnapshot: snapshot,
+            resumable: false
+        )
     }
 
     private static func elevenLabsReference(

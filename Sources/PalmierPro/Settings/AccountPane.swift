@@ -6,11 +6,13 @@ struct AccountPane: View {
 
     @State private var falKey = ""
     @State private var elevenLabsKey = ""
+    @AppStorage(CodexImageGenerationPreferences.defaultsKey) private var preferCodexImages = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xxl) {
             accountSection
             if session.isSignedIn {
+                codexImageSection
                 creatorStudioSection
                 localFalSection
                 elevenLabsSection
@@ -20,6 +22,21 @@ struct AccountPane: View {
                     .font(.system(size: AppTheme.FontSize.sm))
                     .foregroundStyle(AppTheme.Status.errorColor)
             }
+        }
+        .onChange(of: preferCodexImages) { _, _ in
+            Task { await ModelCatalog.shared.reload() }
+        }
+    }
+
+    private var codexImageSection: some View {
+        SettingsSection(title: L10n.string("Image generation")) {
+            SettingsToggleRow(
+                title: L10n.string("Prefer Codex GPT Image 2"),
+                subtitle: L10n.string(
+                    "Uses the signed-in Codex subscription allowance by default. Fal.ai image models remain available in the model picker."
+                ),
+                isOn: $preferCodexImages
+            )
         }
     }
 
@@ -63,16 +80,19 @@ struct AccountPane: View {
 
                 if let code = session.pairingCode, let instructions = session.pairingInstructions {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-                        Text(L10n.string("Authorize this code with your authenticated ClickCampaigns GodMode MCP:"))
+                        Text(L10n.string("1. Open a new chat in Codex or Claude Code."))
                             .font(.system(size: AppTheme.FontSize.sm))
                             .foregroundStyle(AppTheme.Text.secondaryColor)
                         Text(verbatim: code)
                             .font(.system(size: AppTheme.FontSize.title1, weight: AppTheme.FontWeight.semibold, design: .monospaced))
                             .foregroundStyle(AppTheme.Text.primaryColor)
                             .textSelection(.enabled)
+                        Text(L10n.string("2. Paste these instructions:"))
+                            .font(.system(size: AppTheme.FontSize.sm))
+                            .foregroundStyle(AppTheme.Text.secondaryColor)
                         Text(verbatim: instructions)
                             .font(.system(size: AppTheme.FontSize.xs))
-                            .foregroundStyle(AppTheme.Text.tertiaryColor)
+                            .foregroundStyle(AppTheme.Text.primaryColor)
                             .fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: AppTheme.Spacing.sm) {
                             Button(L10n.string("Copy instructions")) {

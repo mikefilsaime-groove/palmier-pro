@@ -13,6 +13,14 @@ final class SampleProjectService {
         var id: String { slug }
     }
 
+    static let defaultSummaries = [
+        Summary(
+            slug: "sample-palmier",
+            title: "Palmier Sample",
+            posterUrl: "https://groovy-kiwi-408.convex.cloud/api/storage/d1244ff5-a2f0-4f5b-93a6-720c65600fc3"
+        )
+    ]
+
     private struct Download: Sendable {
         let id: String
         let relativePath: String

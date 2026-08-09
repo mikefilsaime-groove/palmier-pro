@@ -2,6 +2,20 @@
   "changelogURL": "https://github.com/mikefilsaime-groove/palmier-pro/releases",
   "entries": [
     {
+      "version": "0.1.1",
+      "date": "2026-08-09",
+      "sections": [
+        {
+          "heading": "New",
+          "items": [
+            "GPT Image 2 can generate and edit images with your signed-in Codex subscription allowance",
+            "Codex is preferred by default while Fal.ai image models remain selectable",
+            "Provider failures never switch silently to a different credential or billing source"
+          ]
+        }
+      ]
+    },
+    {
       "version": "0.1.0",
       "date": "2026-08-08",
       "sections": [

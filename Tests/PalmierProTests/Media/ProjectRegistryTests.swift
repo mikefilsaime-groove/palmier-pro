@@ -8,10 +8,12 @@ struct ProjectRegistryTests {
 
     /// Fresh registry backed by a unique temp file per test — never touches the singleton's
     /// production storage.
-    private func makeRegistry() -> ProjectRegistry {
+    private func makeRegistry() async -> ProjectRegistry {
         let url = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("registry-\(UUID().uuidString).json")
-        return ProjectRegistry(fileURL: url)
+        let registry = ProjectRegistry(fileURL: url)
+        await registry.waitUntilLoaded()
+        return registry
     }
 
     private func makeProjectURL(_ name: String = "Test") -> URL {
@@ -20,31 +22,31 @@ struct ProjectRegistryTests {
 
     // MARK: - register
 
-    @Test func registerAddsNewProject() {
-        let reg = makeRegistry()
+    @Test func registerAddsNewProject() async {
+        let reg = await makeRegistry()
         let url = makeProjectURL()
         reg.register(url)
         #expect(reg.entries.count == 1)
         #expect(reg.entries[0].url.standardizedFileURL == url.standardizedFileURL)
     }
 
-    @Test func registerDeduplicatesByStandardizedURL() {
+    @Test func registerDeduplicatesByStandardizedURL() async {
         // Same project URL registered twice → one entry, lastOpenedDate updated.
-        let reg = makeRegistry()
+        let reg = await makeRegistry()
         let url = makeProjectURL()
         reg.register(url)
         let firstOpened = reg.entries[0].lastOpenedDate
 
         // Sleep briefly to ensure the timestamps differ.
-        Thread.sleep(forTimeInterval: 0.01)
+        try? await Task.sleep(for: .milliseconds(10))
         reg.register(url)
         #expect(reg.entries.count == 1)
         #expect(reg.entries[0].lastOpenedDate > firstOpened)
     }
 
-    @Test func registerTreatsPathsWithExtraSlashesAsTheSameProject() {
+    @Test func registerTreatsPathsWithExtraSlashesAsTheSameProject() async {
         // standardizedFileURL collapses redundant slashes, so /tmp/foo and /tmp//foo dedupe.
-        let reg = makeRegistry()
+        let reg = await makeRegistry()
         let url1 = URL(fileURLWithPath: "/tmp/dedupe-\(UUID().uuidString).palmier")
         let url2 = URL(string: "file://\(url1.path)")! // same path, different URL form
         reg.register(url1)
@@ -54,8 +56,8 @@ struct ProjectRegistryTests {
 
     // MARK: - remove
 
-    @Test func removeDropsMatchingEntry() {
-        let reg = makeRegistry()
+    @Test func removeDropsMatchingEntry() async {
+        let reg = await makeRegistry()
         let a = makeProjectURL("A")
         let b = makeProjectURL("B")
         reg.register(a)
@@ -65,8 +67,8 @@ struct ProjectRegistryTests {
         #expect(reg.entries[0].url.standardizedFileURL == b.standardizedFileURL)
     }
 
-    @Test func removeIsNoOpForUnknownURL() {
-        let reg = makeRegistry()
+    @Test func removeIsNoOpForUnknownURL() async {
+        let reg = await makeRegistry()
         let a = makeProjectURL("A")
         reg.register(a)
         reg.remove(makeProjectURL("Ghost"))
@@ -74,7 +76,7 @@ struct ProjectRegistryTests {
     }
 
     @Test func deleteBatchRemovesMissingProjectsAndReturnsTheirIDs() async {
-        let reg = makeRegistry()
+        let reg = await makeRegistry()
         let first = makeProjectURL("First")
         let second = makeProjectURL("Second")
         reg.register(first)
@@ -90,14 +92,14 @@ struct ProjectRegistryTests {
 
     // MARK: - updateURL (rename / move)
 
-    @Test func updateURLChangesURLAndBumpsLastOpenedDate() {
-        let reg = makeRegistry()
+    @Test func updateURLChangesURLAndBumpsLastOpenedDate() async {
+        let reg = await makeRegistry()
         let oldURL = makeProjectURL("OldName")
         reg.register(oldURL)
         let oldDate = reg.entries[0].lastOpenedDate
 
         let newURL = makeProjectURL("NewName")
-        Thread.sleep(forTimeInterval: 0.01)
+        try? await Task.sleep(for: .milliseconds(10))
         reg.updateURL(from: oldURL, to: newURL)
 
         #expect(reg.entries.count == 1)
@@ -105,8 +107,8 @@ struct ProjectRegistryTests {
         #expect(reg.entries[0].lastOpenedDate > oldDate)
     }
 
-    @Test func updateURLIsNoOpWhenSourceUnknown() {
-        let reg = makeRegistry()
+    @Test func updateURLIsNoOpWhenSourceUnknown() async {
+        let reg = await makeRegistry()
         let a = makeProjectURL("A")
         reg.register(a)
         reg.updateURL(from: makeProjectURL("Ghost"), to: makeProjectURL("Phantom"))
@@ -116,12 +118,12 @@ struct ProjectRegistryTests {
 
     // MARK: - sortedEntries
 
-    @Test func sortedEntriesAreNewestFirst() {
-        let reg = makeRegistry()
+    @Test func sortedEntriesAreNewestFirst() async {
+        let reg = await makeRegistry()
         let oldURL = makeProjectURL("Old")
         let newURL = makeProjectURL("New")
         reg.register(oldURL)
-        Thread.sleep(forTimeInterval: 0.01)
+        try? await Task.sleep(for: .milliseconds(10))
         reg.register(newURL)
         let sorted = reg.sortedEntries
         #expect(sorted[0].url.standardizedFileURL == newURL.standardizedFileURL)
@@ -130,17 +132,20 @@ struct ProjectRegistryTests {
 
     // MARK: - Persistence
 
-    @Test func registryPersistsAcrossLoadCycles() {
+    @Test func registryPersistsAcrossLoadCycles() async {
         let url = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("persist-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: url) }
 
         do {
             let first = ProjectRegistry(fileURL: url)
+            await first.waitUntilLoaded()
             first.register(makeProjectURL("Persisted"))
             #expect(first.entries.count == 1)
+            await first.waitForPendingWrites()
         }
         let second = ProjectRegistry(fileURL: url)
+        await second.waitUntilLoaded()
         #expect(second.entries.count == 1, "registry should reload from disk")
     }
 

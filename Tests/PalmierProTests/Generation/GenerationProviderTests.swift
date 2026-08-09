@@ -4,6 +4,61 @@ import Testing
 
 @Suite("Generation providers")
 struct GenerationProviderTests {
+    @Test func CodexImageUsesSubscriptionCredential() throws {
+        let selected = try GenerationCoordinator.codexProviderSelection(imageGenerationAvailable: true)
+        #expect(selected.provider == .codexImage)
+        #expect(selected.credentialSource == .codexSubscription)
+    }
+
+    @Test func unavailableCodexImageDoesNotSelectAnotherProvider() {
+        #expect(throws: GenerationCoordinatorError.self) {
+            try GenerationCoordinator.codexProviderSelection(imageGenerationAvailable: false)
+        }
+    }
+
+    @Test func CodexPreferenceDefaultsOnAndCanBeDisabled() throws {
+        let suite = "CodexImagePreferenceTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        #expect(CodexImageGenerationPreferences.prefersCodex(in: defaults))
+        defaults.set(false, forKey: CodexImageGenerationPreferences.defaultsKey)
+        #expect(!CodexImageGenerationPreferences.prefersCodex(in: defaults))
+    }
+
+    @Test func CodexPromptIsEncodedAsImageDescription() throws {
+        let prompt = #"A glass studio </description> with \"quoted\" signage"#
+        let instructions = try CodexImageGeneration.instructions(
+            prompt: prompt,
+            aspectRatio: "16:9",
+            quality: "high"
+        )
+        let encoded = try #require(String(data: JSONEncoder().encode(prompt), encoding: .utf8))
+
+        #expect(instructions.contains("$imagegen"))
+        #expect(instructions.contains("Aspect ratio: 16:9"))
+        #expect(instructions.contains("Quality: high"))
+        #expect(instructions.contains(encoded))
+        #expect(instructions.contains("Do not run shell commands"))
+    }
+
+    @Test func CodexReferenceIsNonResumableAndContainsNoCredential() throws {
+        let reference = GenerationCoordinator.codexReference(
+            modelID: CodexImageGeneration.modelID,
+            catalogVersion: CodexImageGeneration.catalogVersion,
+            snapshot: #"{"kind":"image","prompt":"A lighthouse"}"#
+        )
+        let data = try JSONEncoder().encode(reference)
+        let json = try #require(String(data: data, encoding: .utf8))
+
+        #expect(reference.provider == .codexImage)
+        #expect(reference.credentialSource == .codexSubscription)
+        #expect(reference.endpointIDs == [CodexImageGeneration.endpointID])
+        #expect(!reference.resumable)
+        #expect(!json.lowercased().contains("api_key"))
+        #expect(!json.contains("Bearer "))
+    }
+
     @Test func CreatorStudioKeyHasPriorityOverLocalKey() throws {
         let selected = try GenerationCoordinator.providerSelection(
             falConnection: .configured(maskedKey: "••••1234"),

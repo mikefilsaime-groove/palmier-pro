@@ -159,7 +159,11 @@ final class ToolExecutor {
         )
         do {
             let resolved = try expandingIdPrefixes(in: args, editor: editor)
-            result = try await run(tool, editor, resolved)
+            if tool == .getMedia {
+                result = try getMedia(editor, resolved)
+            } else {
+                result = try await run(tool, editor, resolved)
+            }
         } catch let err as ToolError {
             result = .error(err.message)
         } catch {

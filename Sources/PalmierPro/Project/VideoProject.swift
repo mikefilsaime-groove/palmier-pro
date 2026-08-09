@@ -27,7 +27,6 @@ private typealias DocumentCloseCallback = @convention(c) (
 ) -> Void
 
 class VideoProject: NSDocument {
-
     private struct SaveRequest {
         let url: URL
         let typeName: String
@@ -133,7 +132,13 @@ class VideoProject: NSDocument {
         )
     }
 
-    override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType, completionHandler: @escaping (Error?) -> Void) {
+    @preconcurrency
+    override func save(
+        to url: URL,
+        ofType typeName: String,
+        for saveOperation: NSDocument.SaveOperationType,
+        completionHandler: @escaping (Error?) -> Void
+    ) {
         let request = SaveRequest(
             url: url,
             typeName: typeName,
@@ -156,10 +161,12 @@ class VideoProject: NSDocument {
         captureSaveSnapshot()
         snapshotSourceProjectURL = fileURL
         super.save(to: request.url, ofType: request.typeName, for: request.operation) { error in
-            coordinator.saveFinished(success: error == nil)
-            request.completion(error)
-            self.saveQueue.removeFirst()
-            self.performNextSave()
+            DispatchQueue.main.async { [self] in
+                coordinator.saveFinished(success: error == nil)
+                request.completion(error)
+                saveQueue.removeFirst()
+                performNextSave()
+            }
         }
     }
 
@@ -443,7 +450,9 @@ class VideoProject: NSDocument {
             self?.updateChangeCount(.changeDone)
         }
         editorViewModel.onProjectCheckpointRequired = { [weak self] in
-            self?.scheduleProjectCheckpointAutosave()
+            guard let self else { return }
+            self.updateChangeCount(.changeDone)
+            self.scheduleProjectCheckpointAutosave()
         }
 
         if let manifest = loadedManifest {

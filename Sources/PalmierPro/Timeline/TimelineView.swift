@@ -36,7 +36,7 @@ final class TimelineView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
@@ -125,7 +125,7 @@ final class TimelineView: NSView {
             let isFirstLayout = editor.timelineVisibleWidth == 0
             let editor = self.editor
             RunLoop.main.perform(inModes: [.default]) {
-                MainActor.assumeIsolated {
+                Task { @MainActor in
                     editor.timelineVisibleWidth = newVisibleWidth
                     let minZoom = editor.minZoomScale
                     if isFirstLayout {
@@ -1649,7 +1649,7 @@ final class TimelineView: NSView {
 /// Viewport-sized drawing surface; transparent to hit testing so all input
 /// reaches the TimelineView document view in document coordinates.
 private final class TimelineCanvasView: NSView {
-    override var isFlipped: Bool { true }
+    nonisolated override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
     override func draw(_ dirtyRect: NSRect) {

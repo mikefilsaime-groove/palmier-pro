@@ -36,9 +36,7 @@ final class AgentService {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.reloadAPIKeys()
-            }
+            Task { @MainActor [weak self] in self?.reloadAPIKeys() }
         }
         refreshCodexAvailability()
     }

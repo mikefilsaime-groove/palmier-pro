@@ -72,7 +72,7 @@ final class CreatorStudioSession {
     var canUseProtectedFeatures: Bool { access.permitsProtectedFeatures }
     var pairingInstructions: String? {
         guard let pairingCode else { return nil }
-        return "In Codex or Claude, ask ClickCampaigns GodMode to authorize CreatorStudio Editor code \(pairingCode)."
+        return "Use ClickCampaigns GodMode MCP to authorize CreatorStudio Editor code \(pairingCode)."
     }
 
     @ObservationIgnored private var appToken: String?

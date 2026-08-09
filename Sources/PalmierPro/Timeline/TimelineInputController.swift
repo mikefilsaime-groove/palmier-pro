@@ -1124,13 +1124,11 @@ final class TimelineInputController {
     private func startPlayheadAutoScroll() {
         guard playheadAutoScrollTimer == nil else { return }
         let timer = Timer(timeInterval: TimelineAutoScroll.interval, repeats: true) { [weak self] timer in
-            guard let self else {
+            guard self != nil else {
                 timer.invalidate()
                 return
             }
-            MainActor.assumeIsolated {
-                self.tickPlayheadAutoScroll()
-            }
+            Task { @MainActor [weak self] in self?.tickPlayheadAutoScroll() }
         }
         playheadAutoScrollTimer = timer
         RunLoop.main.add(timer, forMode: .default)

@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 
 struct ProjectEntry: Codable, Identifiable, Sendable {
@@ -35,6 +36,7 @@ final class ProjectRegistry {
     private let disk = ProjectRegistryDisk()
     private var isLoading = false
     private var pendingMutations: [(inout [ProjectEntry]) -> Void] = []
+    private var loadingContinuations: [CheckedContinuation<Void, Never>] = []
 
     private init() {
         fileURL = Project.storageDirectory.appendingPathComponent(Project.registryFilename)
@@ -43,7 +45,7 @@ final class ProjectRegistry {
 
     init(fileURL: URL) {
         self.fileURL = fileURL
-        entries = Self.loadEntries(from: fileURL)
+        load()
     }
 
     // MARK: - Mutations
@@ -101,7 +103,17 @@ final class ProjectRegistry {
     }
 
     private func save() {
-        Self.saveEntries(entries, to: fileURL)
+        disk.save(entries, to: fileURL)
+    }
+
+    func waitUntilLoaded() async {
+        guard isLoading else { return }
+        await withCheckedContinuation { loadingContinuations.append($0) }
+    }
+
+    func waitForPendingWrites() async {
+        await waitUntilLoaded()
+        await disk.flush()
     }
 
     private func mutate(_ apply: @escaping (inout [ProjectEntry]) -> Void) {
@@ -116,14 +128,17 @@ final class ProjectRegistry {
     private func finishLoading(_ loaded: [ProjectEntry]) {
         entries = loaded
         isLoading = false
-        guard !pendingMutations.isEmpty else { return }
-
-        let mutations = pendingMutations
-        pendingMutations.removeAll()
-        for mutation in mutations {
-            mutation(&entries)
+        if !pendingMutations.isEmpty {
+            let mutations = pendingMutations
+            pendingMutations.removeAll()
+            for mutation in mutations {
+                mutation(&entries)
+            }
+            save()
         }
-        save()
+        let continuations = loadingContinuations
+        loadingContinuations.removeAll()
+        for continuation in continuations { continuation.resume() }
     }
 
     fileprivate nonisolated static func loadEntries(from fileURL: URL) -> [ProjectEntry] {
@@ -138,16 +153,32 @@ final class ProjectRegistry {
     }
 }
 
-private actor ProjectRegistryDisk {
+private final class ProjectRegistryDisk: @unchecked Sendable {
     struct TrashResult: Sendable {
         let id: UUID
         let name: String
         let deleted: Bool
     }
 
-    func load(from fileURL: URL) -> [ProjectEntry] {
-        Project.ensureStorageDirectory()
-        return ProjectRegistry.loadEntries(from: fileURL)
+    private let queue = DispatchQueue(label: "gg.creatorstudio.editor.project-registry", qos: .utility)
+
+    func load(from fileURL: URL) async -> [ProjectEntry] {
+        await withCheckedContinuation { continuation in
+            queue.async {
+                Project.ensureStorageDirectory()
+                continuation.resume(returning: ProjectRegistry.loadEntries(from: fileURL))
+            }
+        }
+    }
+
+    func save(_ entries: [ProjectEntry], to fileURL: URL) {
+        queue.async { ProjectRegistry.saveEntries(entries, to: fileURL) }
+    }
+
+    func flush() async {
+        await withCheckedContinuation { continuation in
+            queue.async { continuation.resume() }
+        }
     }
 
     func trashIfPresent(_ url: URL) -> Bool {
@@ -160,9 +191,13 @@ private actor ProjectRegistryDisk {
         }
     }
 
-    func trash(_ entries: [ProjectEntry]) -> [TrashResult] {
-        entries.map {
-            TrashResult(id: $0.id, name: $0.name, deleted: trashIfPresent($0.url))
+    func trash(_ entries: [ProjectEntry]) async -> [TrashResult] {
+        await withCheckedContinuation { continuation in
+            queue.async { [self] in
+                continuation.resume(returning: entries.map {
+                    TrashResult(id: $0.id, name: $0.name, deleted: trashIfPresent($0.url))
+                })
+            }
         }
     }
 }

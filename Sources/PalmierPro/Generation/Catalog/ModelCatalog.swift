@@ -59,8 +59,9 @@ final class ModelCatalog {
                 entries = Self.builtInAudioEntries(voices: resolvedVoices, ttsModels: resolvedModels)
             }
         }
+        let codexInstalled = await CodexAppServer.isInstalled()
         guard CreatorStudioSession.shared.canUseProtectedFeatures else {
-            apply(entries)
+            apply(Self.addingCodexImage(to: entries, installed: codexInstalled))
             return
         }
         do {
@@ -69,9 +70,9 @@ final class ModelCatalog {
             let remote = try await (video, image)
             entries.append(contentsOf: remote.0.models.compactMap(Self.videoEntry))
             entries.append(contentsOf: remote.1.models.compactMap(Self.imageEntry))
-            apply(entries)
+            apply(Self.addingCodexImage(to: entries, installed: codexInstalled))
         } catch {
-            apply(entries)
+            apply(Self.addingCodexImage(to: entries, installed: codexInstalled))
             lastError = error.localizedDescription
             Log.generation.warning("CreatorStudio model catalog unavailable: \(error.localizedDescription)")
         }
@@ -207,6 +208,38 @@ final class ModelCatalog {
             operation: model.operation,
             catalogVersion: model.catalogVersion,
             estimatedProviderCost: model.estimatedProviderCost
+        )
+    }
+
+    private static func addingCodexImage(to entries: [CatalogEntry], installed: Bool) -> [CatalogEntry] {
+        guard installed else { return entries }
+        if CodexImageGenerationPreferences.prefersCodex() {
+            return [codexImageEntry] + entries
+        }
+        return entries + [codexImageEntry]
+    }
+
+    private static var codexImageEntry: CatalogEntry {
+        CatalogEntry(
+            id: CodexImageGeneration.modelID,
+            kind: .image,
+            displayName: "GPT Image 2",
+            providerIconKey: "openai",
+            providerName: "Codex",
+            description: "Uses the signed-in Codex subscription allowance.",
+            allowedEndpoints: [CodexImageGeneration.endpointID],
+            responseShape: .images,
+            uiCapabilities: .image(ImageCaps(
+                resolutions: nil,
+                aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4"],
+                qualities: ["low", "medium", "high"],
+                supportsImageReference: true,
+                maxImages: 1
+            )),
+            paidOnly: false,
+            operation: "image-generation",
+            catalogVersion: CodexImageGeneration.catalogVersion,
+            estimatedProviderCost: nil
         )
     }
 

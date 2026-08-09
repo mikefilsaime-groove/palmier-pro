@@ -431,9 +431,7 @@ final class ScrubAudioEngine {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.suspendOutput()
-            }
+            Task { @MainActor [weak self] in self?.suspendOutput() }
         }
         lifecycleObservers.append((appCenter, resignObserver))
 
@@ -443,9 +441,7 @@ final class ScrubAudioEngine {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.suspendOutput()
-            }
+            Task { @MainActor [weak self] in self?.suspendOutput() }
         }
         lifecycleObservers.append((workspaceCenter, sleepObserver))
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SampleProjectsStrip: View {
-    @State private var samples: [SampleProjectService.Summary] = []
+    @State private var samples = SampleProjectService.defaultSummaries
     @State private var activeDownload: SampleDownload?
     @AppStorage("samplesSectionExpanded") private var isExpanded = true
 
@@ -11,7 +11,10 @@ struct SampleProjectsStrip: View {
                 strip
             }
         }
-        .task { samples = (try? await SampleProjectService.shared.fetchSamples()) ?? [] }
+        .task {
+            guard let fetched = try? await SampleProjectService.shared.fetchSamples(), !fetched.isEmpty else { return }
+            samples = fetched
+        }
     }
 
     private var strip: some View {

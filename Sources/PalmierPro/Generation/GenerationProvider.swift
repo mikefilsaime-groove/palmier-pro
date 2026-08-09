@@ -1,12 +1,14 @@
 import Foundation
 
 enum GenerationProviderID: String, Codable, Sendable, Hashable {
+    case codexImage = "codex-image"
     case creatorStudioFal = "creatorstudio-fal"
     case localFal = "local-fal"
     case elevenLabs = "elevenlabs"
 }
 
 enum GenerationCredentialSource: String, Codable, Sendable, Hashable {
+    case codexSubscription = "codex-subscription"
     case creatorStudio = "creatorstudio-key"
     case localFalKeychain = "local-fal-keychain"
     case elevenLabsKeychain = "elevenlabs-keychain"
@@ -63,21 +65,28 @@ struct GenerationJobUpdate: Sendable {
 }
 
 enum GenerationCoordinatorError: LocalizedError, Sendable {
+    case codexImageUnavailable(String)
     case creatorStudioUnavailable(String)
     case falKeyMissing
     case elevenLabsKeyMissing
     case unsupportedModel(String)
     case invalidProviderResponse
-    case interruptedNonResumableRequest
+    case interruptedNonResumableRequest(GenerationProviderID)
 
     var errorDescription: String? {
         switch self {
+        case .codexImageUnavailable(let message): message
         case .creatorStudioUnavailable(let message): message
         case .falKeyMissing: "Connect Fal.ai in CreatorStudio or add a local Fal.ai key in Settings."
         case .elevenLabsKeyMissing: "Add an ElevenLabs API key in Settings."
         case .unsupportedModel(let model): "The selected model is unavailable: \(model)."
         case .invalidProviderResponse: "The generation provider returned an invalid response."
-        case .interruptedNonResumableRequest: "This ElevenLabs request was interrupted and cannot be resumed. Generate it again."
+        case .interruptedNonResumableRequest(let provider):
+            switch provider {
+            case .codexImage: "This Codex image request was interrupted and cannot be resumed. Generate it again."
+            case .elevenLabs: "This ElevenLabs request was interrupted and cannot be resumed. Generate it again."
+            case .creatorStudioFal, .localFal: "This generation was interrupted and cannot be resumed. Generate it again."
+            }
         }
     }
 }

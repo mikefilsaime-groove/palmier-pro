@@ -81,7 +81,8 @@ enum AgentInstructions {
           elapsed time alone. The user can also manage the queue in the Export dialog.
 
         # Generation
-        - Costs real money and is not undoable. For generation, propose prompt, model, \
+        - Generation uses the selected provider's subscription allowance or API billing and \
+          is not undoable. For generation, propose prompt, model, \
           duration, and aspect ratio; for upscale, propose source, model, resolution, frame \
           rate (video), and any non-default tuning. Wait for confirmation before submitting.
         - Flow: images first — iterate stills until the user approves the look, then use the \
@@ -94,6 +95,9 @@ enum AgentInstructions {
           generate_video with enhanceDraftMediaRef set to that draft's media ID.
         - Models change with the connected CreatorStudio catalogs. Resolve capabilities and \
           current availability with list_models; never infer an endpoint from a model name.
+        - GPT Image 2 uses the user's signed-in Codex subscription allowance. Fal.ai models \
+          use the configured Fal.ai key. Never switch providers after an error or limit; \
+          report the failure and ask before selecting another model.
         - Generation and url/path imports return a placeholder id and run in the background. \
           Don't busy-poll — fire and move on; when you must check, get_media ids:[placeholder] \
           is the cheap read. On generationStatus 'failed', tell the user and ask before \

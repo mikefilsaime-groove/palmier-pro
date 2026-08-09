@@ -1028,12 +1028,12 @@ enum ToolDefinitions {
         ),
         AgentTool(
             name: .generateImage,
-            description: "Starts an async AI image generation. Returns a placeholder asset ID immediately; generation runs in the background. Costs real money and is not undoable.",
+            description: "Starts an async AI image generation. Returns a placeholder asset ID immediately; generation runs in the background and is not undoable. GPT Image 2 uses the signed-in Codex subscription allowance; Fal.ai models use the configured Fal.ai credential. The provider never changes silently after submission.",
             inputSchema: objectSchema(
                 properties: [
                     "prompt": ["type": "string", "description": "Text description of the image to generate"],
                     "name": ["type": "string", "description": "Display name for the asset in the media library. Defaults to first 30 chars of prompt."],
-                    "model": ["type": "string", "description": "Model ID (e.g. 'nano-banana-pro'). Use list_models to see options. Defaults to first available model."],
+                    "model": ["type": "string", "description": "Model ID (e.g. 'codex/gpt-image-2'). Use list_models to see options. Defaults to the preferred first available model."],
                     "aspectRatio": ["type": "string", "description": "Aspect ratio (e.g. '16:9', '9:16')"],
                     "resolution": ["type": "string", "description": "Resolution (e.g. '2K', '4K')"],
                     "quality": ["type": "string", "description": "Image quality (e.g. 'low', 'medium', 'high'). Only supported by some models — see list_models."],

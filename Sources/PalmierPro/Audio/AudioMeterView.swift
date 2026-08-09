@@ -2,28 +2,27 @@ import SwiftUI
 
 struct AudioMeterView: View {
     @Environment(EditorViewModel.self) private var editor
+    @State private var display = StereoAudioMeterDisplay.silence
 
-    private static let barsWidth = AppTheme.AudioMeter.barWidth * 2
-    private static let contentWidth = barsWidth + AppTheme.Spacing.xxs + AppTheme.Spacing.xs
-    private static let rulerMarks = stride(
+    nonisolated private static let barsWidth = AppTheme.AudioMeter.barWidth * 2
+    nonisolated private static let contentWidth = barsWidth + AppTheme.Spacing.xxs + AppTheme.Spacing.xs
+    nonisolated private static let rulerMarks = stride(
         from: AudioMeterChannelState.ceilingDb,
         through: AudioMeterChannelState.floorDb,
         by: -AppTheme.AudioMeter.rulerStepDb
     ).map { $0 }
 
     var body: some View {
+        let meterDisplay = display
         ZStack(alignment: .leading) {
             Canvas { context, size in
-                drawBackground(size: size, context: &context)
+                Self.drawBackground(size: size, context: &context)
             }
 
-            SwiftUI.TimelineView(.animation(minimumInterval: AppTheme.AudioMeter.refreshInterval)) { _ in
-                let display = editor.audioMeter.display()
-                Canvas { context, size in
-                    drawLevels(display, size: size, context: &context)
-                }
-                .accessibilityHidden(true)
+            Canvas { context, size in
+                Self.drawLevels(meterDisplay, size: size, context: &context)
             }
+            .accessibilityHidden(true)
 
             Rectangle()
                 .fill(AppTheme.Background.previewCanvasColor)
@@ -50,9 +49,19 @@ struct AudioMeterView: View {
                 .fill(AppTheme.Border.primaryColor)
                 .frame(width: AppTheme.BorderWidth.thin)
         }
+        .task {
+            while !Task.isCancelled {
+                display = editor.audioMeter.display()
+                do {
+                    try await Task.sleep(for: .seconds(AppTheme.AudioMeter.refreshInterval))
+                } catch {
+                    return
+                }
+            }
+        }
     }
 
-    private func drawBackground(size: CGSize, context: inout GraphicsContext) {
+    nonisolated private static func drawBackground(size: CGSize, context: inout GraphicsContext) {
         let layout = AudioMeterSegmentLayout(height: size.height)
         guard layout.count > 0 else { return }
         var background = Path()
@@ -78,7 +87,7 @@ struct AudioMeterView: View {
         context.fill(ruler, with: .color(AppTheme.Text.mutedColor))
     }
 
-    private func drawLevels(
+    nonisolated private static func drawLevels(
         _ display: StereoAudioMeterDisplay,
         size: CGSize,
         context: inout GraphicsContext
@@ -91,7 +100,7 @@ struct AudioMeterView: View {
         paths.draw(context: &context)
     }
 
-    private func append(
+    nonisolated private static func append(
         _ channel: AudioMeterChannelDisplay,
         x: CGFloat,
         layout: AudioMeterSegmentLayout,

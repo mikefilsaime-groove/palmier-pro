@@ -681,9 +681,7 @@ final class VideoEngine {
         ) { [weak self] notification in
             guard let object = notification.object else { return }
             let itemIdentifier = ObjectIdentifier(object as AnyObject)
-            MainActor.assumeIsolated {
-                self?.handlePlaybackEnd(for: itemIdentifier)
-            }
+            Task { @MainActor [weak self] in self?.handlePlaybackEnd(for: itemIdentifier) }
         }
     }
 
@@ -707,9 +705,7 @@ final class VideoEngine {
         }
         let interval = Self.playheadObserverInterval(for: playbackRate)
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            MainActor.assumeIsolated {
-                self?.updatePlaybackTime(time)
-            }
+            Task { @MainActor [weak self] in self?.updatePlaybackTime(time) }
         }
     }
 

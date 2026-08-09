@@ -354,7 +354,7 @@ private struct RulerView: NSViewRepresentable {
         var clipStart = 0
         var span = 1
         var fps = 30
-        override var isFlipped: Bool { true }
+        nonisolated override var isFlipped: Bool { true }
         override func draw(_ dirtyRect: NSRect) {
             guard let ctx = NSGraphicsContext.current?.cgContext, bounds.width > 0 else { return }
             let pxPerFrame = Double(bounds.width) / Double(max(1, span))

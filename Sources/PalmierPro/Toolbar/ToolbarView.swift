@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ToolbarView: View {
     @Environment(EditorViewModel.self) var editor
+    @State private var zoomSliderValue = log(Zoom.min)
 
     var body: some View {
         HStack(spacing: AppTheme.Spacing.md) {
@@ -50,15 +51,16 @@ struct ToolbarView: View {
                     isDisabled: editor.zoomScale <= editor.minZoomScale,
                     action: zoomOut
                 )
-                // Log-mapped so slider travel is uniform per zoom factor
-                let zoomBinding = Binding(
-                    get: { log(editor.zoomScale) },
-                    set: { editor.zoomScale = exp($0) }
-                )
-                Slider(value: zoomBinding, in: log(editor.minZoomScale)...log(Zoom.max))
+                Slider(value: $zoomSliderValue, in: log(editor.minZoomScale)...log(Zoom.max))
                     .controlSize(.mini)
                     .tint(AppTheme.Accent.primary)
                     .frame(width: 100)
+                    .onAppear { syncZoomSlider(to: editor.zoomScale) }
+                    .onChange(of: editor.zoomScale) { _, value in syncZoomSlider(to: value) }
+                    .onChange(of: zoomSliderValue) { _, value in
+                        let zoomScale = exp(value)
+                        if editor.zoomScale != zoomScale { editor.zoomScale = zoomScale }
+                    }
                 zoomButton(
                     "plus.magnifyingglass",
                     help: L10n.string("Zoom In"),
@@ -111,6 +113,11 @@ struct ToolbarView: View {
 
     private func setZoomScale(_ zoomScale: Double) {
         editor.zoomScale = min(Zoom.max, max(editor.minZoomScale, zoomScale))
+    }
+
+    private func syncZoomSlider(to zoomScale: Double) {
+        let value = log(zoomScale)
+        if zoomSliderValue != value { zoomSliderValue = value }
     }
 
     private func undo() {

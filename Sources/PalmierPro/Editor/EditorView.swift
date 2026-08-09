@@ -22,7 +22,7 @@ struct EditorView: NSViewControllerRepresentable {
 // MARK: - Split view controller
 
 private final class HiddenDividerSplitView: NSSplitView {
-    override var dividerThickness: CGFloat { 0 }
+    nonisolated override var dividerThickness: CGFloat { 0 }
 
     override func drawDivider(in rect: NSRect) {}
 }

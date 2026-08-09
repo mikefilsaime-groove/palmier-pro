@@ -438,7 +438,7 @@ final class GenerationService {
         selection: GenerationProviderSelection
     ) async throws -> [GenerationUploadReference] {
         guard !urls.isEmpty else { return [] }
-        if selection.provider == .elevenLabs {
+        if selection.provider == .elevenLabs || selection.provider == .codexImage {
             return urls.enumerated().map { index, url in
                 GenerationUploadReference(
                     id: stableIDs.indices.contains(index) ? stableIDs[index] : UUID().uuidString,
@@ -557,7 +557,7 @@ final class GenerationService {
         onFailure: (@MainActor () -> Void)?
     ) async {
         guard reference.resumable else {
-            let message = GenerationCoordinatorError.interruptedNonResumableRequest.localizedDescription
+            let message = GenerationCoordinatorError.interruptedNonResumableRequest(reference.provider).localizedDescription
             for placeholder in placeholders {
                 updateGenerationMetadata(placeholder, editor: editor, status: .failed(message))
             }
@@ -672,6 +672,7 @@ final class GenerationService {
             for placeholder in placeholders {
                 updateGenerationMetadata(placeholder, editor: editor, status: .failed("No URL in response"))
             }
+            editor.onProjectCheckpointRequired?()
             onFailure?()
             return
         }
@@ -693,6 +694,7 @@ final class GenerationService {
                 finalized.append(placeholder)
             }
         }
+        editor.onProjectCheckpointRequired?()
 
         if let first = finalized.first {
             AppNotifications.generationComplete(

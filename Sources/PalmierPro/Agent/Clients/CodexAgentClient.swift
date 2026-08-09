@@ -1,5 +1,90 @@
+import Darwin
 import Foundation
 import MCP
+
+private final class CodexAppServerOutput: @unchecked Sendable {
+    let lines: AsyncStream<String>
+
+    private let handle: FileHandle
+    private let continuation: AsyncStream<String>.Continuation
+    private let lock = NSLock()
+    private var buffered = Data()
+    private var stopped = false
+
+    init(handle: FileHandle) {
+        self.handle = handle
+        var streamContinuation: AsyncStream<String>.Continuation!
+        lines = AsyncStream { streamContinuation = $0 }
+        continuation = streamContinuation
+        Thread.detachNewThread { [weak self] in
+            Thread.current.name = "CreatorStudio Codex Output"
+            self?.readOutput()
+        }
+    }
+
+    func stop() {
+        finish(includeRemainder: false)
+    }
+
+    private func readOutput() {
+        var bytes = [UInt8](repeating: 0, count: 16_384)
+        while true {
+            let count = bytes.withUnsafeMutableBytes { buffer in
+                Darwin.read(handle.fileDescriptor, buffer.baseAddress, buffer.count)
+            }
+            if count > 0 {
+                receive(Data(bytes[0..<count]))
+                continue
+            }
+            if count < 0, errno == EINTR { continue }
+            finish(includeRemainder: true)
+            return
+        }
+    }
+
+    private func receive(_ data: Data) {
+        guard !data.isEmpty else {
+            finish(includeRemainder: true)
+            return
+        }
+
+        lock.lock()
+        guard !stopped else {
+            lock.unlock()
+            return
+        }
+        buffered.append(data)
+        var values: [String] = []
+        while let newline = buffered.firstIndex(of: 0x0A) {
+            let line = buffered[..<newline]
+            buffered.removeSubrange(...newline)
+            if !line.isEmpty, let value = String(data: line, encoding: .utf8) {
+                values.append(value)
+            }
+        }
+        lock.unlock()
+
+        for value in values { continuation.yield(value) }
+    }
+
+    private func finish(includeRemainder: Bool) {
+        lock.lock()
+        guard !stopped else {
+            lock.unlock()
+            return
+        }
+        stopped = true
+        let remainder = includeRemainder && !buffered.isEmpty
+            ? String(data: buffered, encoding: .utf8)
+            : nil
+        buffered.removeAll()
+        lock.unlock()
+
+        if let remainder { continuation.yield(remainder) }
+        continuation.finish()
+        try? handle.close()
+    }
+}
 
 struct CodexAgentClient: AgentClient {
     let settings: AgentRunSettings
@@ -29,6 +114,8 @@ enum CodexAppServerError: LocalizedError, Sendable {
     case invalidResponse(String)
     case requestFailed(String)
     case turnFailed(String)
+    case imageGenerationUnavailable
+    case imageGenerationFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -42,12 +129,19 @@ enum CodexAppServerError: LocalizedError, Sendable {
             "Codex returned an invalid response: \(message)"
         case .requestFailed(let message), .turnFailed(let message):
             message
+        case .imageGenerationUnavailable:
+            "Update Codex and sign in to use GPT Image 2."
+        case .imageGenerationFailed(let message):
+            message
         }
     }
 }
 
 actor CodexAppServer {
-    static let shared = CodexAppServer()
+    static let shared = CodexAppServer(includesEditorMCP: true)
+    static let image = CodexAppServer(includesEditorMCP: false)
+
+    private let includesEditorMCP: Bool
 
     private struct ActiveTurn {
         let conversationID: UUID
@@ -58,8 +152,18 @@ actor CodexAppServer {
         let completion: CheckedContinuation<Void, any Error>
     }
 
+    private struct ActiveImageTurn {
+        let threadID: String
+        var turnID: String?
+        var outputURL: URL?
+        var failureMessage: String?
+        let completion: CheckedContinuation<URL, any Error>
+    }
+
     private var process: Process?
     private var input: FileHandle?
+    private var output: FileHandle?
+    private var outputReader: CodexAppServerOutput?
     private var outputTask: Task<Void, Never>?
     private var startupTask: Task<Void, any Error>?
     private var isInitialized = false
@@ -67,11 +171,66 @@ actor CodexAppServer {
     private var pendingResponses: [Int: CheckedContinuation<Value, any Error>] = [:]
     private var conversationThreads: [UUID: String] = [:]
     private var activeTurns: [String: ActiveTurn] = [:]
+    private var activeImageTurns: [String: ActiveImageTurn] = [:]
+    private var imageGenerationCapability: Bool?
+
+    private init(includesEditorMCP: Bool) {
+        self.includesEditorMCP = includesEditorMCP
+    }
 
     nonisolated static func isInstalled() async -> Bool {
         await Task.detached(priority: .utility) {
             executableURL() != nil
         }.value
+    }
+
+    func supportsImageGeneration() async throws -> Bool {
+        try await ensureStarted()
+        if let imageGenerationCapability { return imageGenerationCapability }
+        let result = try await request(method: "modelProvider/capabilities/read", params: .object([:]))
+        guard let available = result.objectValue?["imageGeneration"]?.boolValue else {
+            throw CodexAppServerError.invalidResponse("model provider capabilities omitted image generation")
+        }
+        imageGenerationCapability = available
+        return available
+    }
+
+    func generateImage(
+        prompt: String,
+        aspectRatio: String,
+        quality: String?,
+        referenceImages: [URL]
+    ) async throws -> URL {
+        guard try await supportsImageGeneration() else {
+            throw CodexAppServerError.imageGenerationUnavailable
+        }
+        try Task.checkCancellation()
+
+        let threadID = try await startImageThread()
+        let instructions = try CodexImageGeneration.instructions(
+            prompt: prompt,
+            aspectRatio: aspectRatio,
+            quality: quality
+        )
+        var inputs = referenceImages.map { reference in
+            Value.object([
+                "type": "localImage",
+                "path": .string(reference.path),
+            ])
+        }
+        inputs.append(textInput(instructions))
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { completion in
+                activeImageTurns[threadID] = ActiveImageTurn(
+                    threadID: threadID,
+                    completion: completion
+                )
+                Task { await self.beginImageTurn(threadID: threadID, input: inputs) }
+            }
+        } onCancel: {
+            Task { await CodexAppServer.image.cancelImageTurn(threadID: threadID) }
+        }
     }
 
     func runTurn(
@@ -154,17 +313,20 @@ actor CodexAppServer {
         process.executableURL = executable
         var arguments = [
             "app-server", "--stdio",
+            "--enable", "image_generation",
             "--disable", "apps",
             "--disable", "plugins",
             "--disable", "remote_plugin",
             "--disable", "skill_search",
             "--disable", "tool_suggest",
         ]
-        arguments.append(contentsOf: await Self.disabledMCPArguments())
-        arguments.append(contentsOf: [
-            "-c", "mcp_servers.creatorstudio-editor.url=\"http://127.0.0.1:\(MCPService.port)/mcp\"",
-            "-c", "mcp_servers.creatorstudio-editor.enabled=true",
-        ])
+        arguments.append(contentsOf: await Self.disabledMCPArguments(allowEditor: includesEditorMCP))
+        if includesEditorMCP {
+            arguments.append(contentsOf: [
+                "-c", "mcp_servers.creatorstudio-editor.url=\"http://127.0.0.1:\(MCPService.port)/mcp\"",
+                "-c", "mcp_servers.creatorstudio-editor.enabled=true",
+            ])
+        }
         process.arguments = arguments
         process.standardInput = inputPipe
         process.standardOutput = outputPipe
@@ -179,14 +341,13 @@ actor CodexAppServer {
         self.process = process
         input = inputPipe.fileHandleForWriting
         let output = outputPipe.fileHandleForReading
+        self.output = output
+        let outputReader = CodexAppServerOutput(handle: output)
+        self.outputReader = outputReader
         outputTask = Task { [weak self] in
-            do {
-                for try await line in output.bytes.lines {
-                    await self?.receive(line: line)
-                }
-            } catch {
-                await self?.connectionEnded()
-                return
+            for await line in outputReader.lines {
+                guard !Task.isCancelled else { return }
+                await self?.receive(line: line)
             }
             await self?.connectionEnded()
         }
@@ -238,6 +399,31 @@ actor CodexAppServer {
         return threadID
     }
 
+    private func startImageThread() async throws -> String {
+        let result = try await request(
+            method: "thread/start",
+            params: .object([
+                "model": .string(AgentModel.defaultModel.rawValue),
+                "cwd": .string(FileManager.default.temporaryDirectory.path),
+                "approvalPolicy": "never",
+                "sandbox": "read-only",
+                "ephemeral": true,
+                "serviceName": "CreatorStudio Editor Image Generation",
+                "baseInstructions": .string(
+                    "Generate the requested image with the built-in image generation capability."
+                ),
+                "developerInstructions": .string(
+                    "Use only the built-in image generation tool. Do not use shell commands, MCP tools, "
+                    + "web search, or file tools. Generate exactly one image and return it without postprocessing."
+                ),
+            ])
+        )
+        guard let threadID = result.objectValue?["thread"]?.objectValue?["id"]?.stringValue else {
+            throw CodexAppServerError.invalidResponse("thread/start omitted the image thread ID")
+        }
+        return threadID
+    }
+
     private func beginTurn(
         threadID: String,
         settings: AgentRunSettings,
@@ -275,11 +461,50 @@ actor CodexAppServer {
         }
     }
 
+    private func beginImageTurn(threadID: String, input: [Value]) async {
+        do {
+            let result = try await request(
+                method: "turn/start",
+                params: .object([
+                    "threadId": .string(threadID),
+                    "clientUserMessageId": .string(UUID().uuidString.lowercased()),
+                    "input": .array(input),
+                    "model": .string(AgentModel.defaultModel.rawValue),
+                    "effort": "low",
+                ])
+            )
+            guard let turnID = result.objectValue?["turn"]?.objectValue?["id"]?.stringValue else {
+                finishImageTurn(
+                    threadID: threadID,
+                    result: .failure(.invalidResponse("turn/start omitted the image turn ID"))
+                )
+                return
+            }
+            guard var active = activeImageTurns[threadID] else {
+                Task { await self.interrupt(threadID: threadID, turnID: turnID) }
+                return
+            }
+            active.turnID = turnID
+            activeImageTurns[threadID] = active
+        } catch let error as CodexAppServerError {
+            finishImageTurn(threadID: threadID, result: .failure(error))
+        } catch {
+            finishImageTurn(threadID: threadID, result: .failure(.requestFailed(error.localizedDescription)))
+        }
+    }
+
     private func cancelTurn(conversationID: UUID, threadID: String) {
         guard let active = activeTurns[threadID], active.conversationID == conversationID else { return }
         let turnID = active.turnID
         activeTurns.removeValue(forKey: threadID)?.completion.resume(throwing: CancellationError())
         guard let turnID else { return }
+        Task { await self.interrupt(threadID: threadID, turnID: turnID) }
+    }
+
+    private func cancelImageTurn(threadID: String) {
+        guard let active = activeImageTurns.removeValue(forKey: threadID) else { return }
+        active.completion.resume(throwing: CancellationError())
+        guard let turnID = active.turnID else { return }
         Task { await self.interrupt(threadID: threadID, turnID: turnID) }
     }
 
@@ -405,7 +630,12 @@ actor CodexAppServer {
     }
 
     private func handleNotification(method: String, params: [String: Value]) {
-        guard let threadID = params["threadId"]?.stringValue,
+        guard let threadID = params["threadId"]?.stringValue else { return }
+        if activeImageTurns[threadID] != nil {
+            handleImageNotification(method: method, params: params, threadID: threadID)
+            return
+        }
+        guard
               var active = activeTurns[threadID] else { return }
         let eventTurnID = params["turnId"]?.stringValue
             ?? params["turn"]?.objectValue?["id"]?.stringValue
@@ -446,6 +676,62 @@ actor CodexAppServer {
             let message = params["error"]?.objectValue?["message"]?.stringValue
                 ?? "Codex could not complete this request."
             finishTurn(threadID: threadID, result: .failure(.turnFailed(message)))
+        default:
+            break
+        }
+    }
+
+    private func handleImageNotification(method: String, params: [String: Value], threadID: String) {
+        guard var active = activeImageTurns[threadID] else { return }
+        let eventTurnID = params["turnId"]?.stringValue
+            ?? params["turn"]?.objectValue?["id"]?.stringValue
+        if let expected = active.turnID, let eventTurnID, expected != eventTurnID { return }
+
+        switch method {
+        case "item/completed":
+            guard let item = params["item"]?.objectValue,
+                  item["type"]?.stringValue == "imageGeneration" else { return }
+            if let path = item["savedPath"]?.stringValue, path.hasPrefix("/") {
+                active.outputURL = URL(fileURLWithPath: path)
+            } else if let result = item["result"]?.stringValue, !result.isEmpty {
+                active.failureMessage = result
+            }
+            activeImageTurns[threadID] = active
+        case "turn/completed":
+            let turn = params["turn"]?.objectValue
+            switch turn?["status"]?.stringValue {
+            case "completed":
+                if let outputURL = active.outputURL {
+                    finishImageTurn(threadID: threadID, result: .success(outputURL))
+                } else {
+                    finishImageTurn(
+                        threadID: threadID,
+                        result: .failure(.imageGenerationFailed(
+                            active.failureMessage ?? "Codex completed without returning an image."
+                        ))
+                    )
+                }
+            case "interrupted":
+                finishImageTurn(
+                    threadID: threadID,
+                    result: .failure(.imageGenerationFailed("The Codex image request was interrupted."))
+                )
+            case "failed":
+                let message = turn?["error"]?.objectValue?["message"]?.stringValue
+                    ?? active.failureMessage
+                    ?? "Codex could not generate the image."
+                finishImageTurn(threadID: threadID, result: .failure(.imageGenerationFailed(message)))
+            default:
+                finishImageTurn(
+                    threadID: threadID,
+                    result: .failure(.invalidResponse("image turn completed without a terminal status"))
+                )
+            }
+        case "error":
+            guard params["willRetry"]?.boolValue == false else { return }
+            let message = params["error"]?.objectValue?["message"]?.stringValue
+                ?? "Codex could not generate the image."
+            finishImageTurn(threadID: threadID, result: .failure(.imageGenerationFailed(message)))
         default:
             break
         }
@@ -503,12 +789,29 @@ actor CodexAppServer {
         }
     }
 
+    private func finishImageTurn(threadID: String, result: Result<URL, CodexAppServerError>) {
+        guard let active = activeImageTurns.removeValue(forKey: threadID) else { return }
+        switch result {
+        case .success(let url):
+            active.completion.resume(returning: url)
+        case .failure(let error):
+            active.completion.resume(throwing: error)
+        }
+    }
+
     private func connectionEnded() {
         guard process != nil || input != nil || isInitialized else { return }
+        let output = output
         process = nil
         input = nil
+        self.output = nil
+        outputReader?.stop()
+        outputReader = nil
+        try? output?.close()
+        outputTask?.cancel()
         outputTask = nil
         isInitialized = false
+        imageGenerationCapability = nil
         conversationThreads.removeAll()
 
         let error = CodexAppServerError.connectionClosed
@@ -522,6 +825,11 @@ actor CodexAppServer {
         for turn in turns {
             turn.completion.resume(throwing: error)
         }
+        let imageTurns = activeImageTurns.values
+        activeImageTurns.removeAll()
+        for turn in imageTurns {
+            turn.completion.resume(throwing: error)
+        }
     }
 
     private nonisolated static func installedExecutableURL() async -> URL? {
@@ -530,7 +838,7 @@ actor CodexAppServer {
         }.value
     }
 
-    private nonisolated static func disabledMCPArguments() async -> [String] {
+    private nonisolated static func disabledMCPArguments(allowEditor: Bool) async -> [String] {
         await Task.detached(priority: .utility) {
             let configURL = FileManager.default.homeDirectoryForCurrentUser
                 .appendingPathComponent(".codex/config.toml")
@@ -541,7 +849,8 @@ actor CodexAppServer {
                 guard header.hasPrefix(prefix), header.hasSuffix("]") else { return [] }
                 let start = header.index(header.startIndex, offsetBy: prefix.count)
                 let name = String(header[start..<header.index(before: header.endIndex)])
-                guard !name.contains("."), name != "creatorstudio-editor" else { return [] }
+                guard !name.contains(".") else { return [] }
+                if allowEditor, name == "creatorstudio-editor" { return [] }
                 return ["-c", "mcp_servers.\(name).enabled=false"]
             }
         }.value

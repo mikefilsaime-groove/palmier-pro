@@ -48,8 +48,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if isTerminating { return .terminateLater }
+    nonisolated func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        Task { @MainActor in
+            AppDelegate.shared.beginTermination()
+        }
+        return .terminateLater
+    }
+
+    private func beginTermination() {
+        guard !isTerminating else { return }
         isTerminating = true
         let projects = AppState.shared.openProjects
         let shouldRestart = restartRequested
@@ -69,16 +76,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if !MLXRuntime.beginTermination() {
                     await MLXRuntime.waitUntilIdle()
                 }
-                sender.reply(toApplicationShouldTerminate: true)
+                NSApp.reply(toApplicationShouldTerminate: true)
             } catch {
                 projects.forEach { $0.editorViewModel.projectPackageCoordinator.cancelClosing() }
                 restartRequested = false
                 isTerminating = false
-                sender.presentError(error)
-                sender.reply(toApplicationShouldTerminate: false)
+                NSApp.presentError(error)
+                NSApp.reply(toApplicationShouldTerminate: false)
             }
         }
-        return .terminateLater
     }
 
     func restart() {

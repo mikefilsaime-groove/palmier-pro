@@ -45,7 +45,7 @@ extension ToolExecutor {
         }) else { return result }
 
         let universe = currentIdUniverse(editor).union(alsoKnown)
-        guard !universe.isEmpty else { return result }
+        guard universe.contains(where: { UUID(uuidString: $0) != nil }) else { return result }
         return await Task.detached(priority: .utility) {
             Self.shorteningIds(in: result, universe: universe)
         }.value

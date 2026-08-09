@@ -31,11 +31,13 @@ CreatorStudio forwards the app-specific bearer token to ClickCampaigns for autho
 
 Provider precedence is strict:
 
-1. When CreatorStudio reports an encrypted user Fal key, submit a durable CreatorStudio job.
-2. When CreatorStudio explicitly reports no key, use the user's local Keychain Fal key if present.
-3. When neither key exists, show an actionable connection prompt.
-4. When CreatorStudio is unavailable or reports an invalid connection, report that failure and do not silently switch credentials.
-5. ElevenLabs operations always use the user's local Keychain ElevenLabs credential.
+1. For images, prefer Codex GPT Image 2 when Codex is installed and the preference is enabled. This uses the user's signed-in Codex subscription allowance.
+2. A selected Codex job never falls back to Fal.ai after a failure, interruption, or usage limit.
+3. For selected Fal.ai models, when CreatorStudio reports an encrypted user Fal key, submit a durable CreatorStudio job.
+4. When CreatorStudio explicitly reports no key, use the user's local Keychain Fal key if present.
+5. When neither Fal.ai key exists, show an actionable connection prompt.
+6. When CreatorStudio is unavailable or reports an invalid connection, report that failure and do not silently switch credentials.
+7. ElevenLabs operations always use the user's local Keychain ElevenLabs credential.
 
 Generation metadata persists provider ID, credential source, model ID, catalog version, endpoint IDs, external job ID, provider request IDs, a credential-free request snapshot, and resumability. Credentials, bearer tokens, ciphertext, and expiring signed URLs are never written into `.palmier` packages.
 
@@ -51,7 +53,9 @@ The selector launch token is hashed at rest and exchanged once for a five-minute
 
 ### Images
 
-Imager is the image model authority. Its canonical versioned catalog and compiler cover active text-to-image, image editing, and One from Each models. CreatorStudio calls Imager through a service-authenticated internal API. Imager returns validated Fal endpoint/input manifests and never receives or returns a Fal key.
+Codex GPT Image 2 is the preferred local image provider when available. CreatorStudio Editor launches the installed Codex app-server, verifies its image-generation capability, and imports the saved result through the same project-safe generation path used by every provider. GPT Image 2 requests are synchronous and non-resumable; interrupted jobs are reported accurately and must be generated again.
+
+Imager remains the Fal.ai image model authority. Its canonical versioned catalog and compiler cover active text-to-image, image editing, and One from Each models. CreatorStudio calls Imager through a service-authenticated internal API. Imager returns validated Fal endpoint/input manifests and never receives or returns a Fal key.
 
 ### Audio
 
@@ -97,6 +101,7 @@ Catalog entries use stable model IDs, media kind, operation, capabilities, setti
 | Service configuration | `Sources/PalmierPro/Account/CreatorStudioConfiguration.swift` |
 | Keychain generation credentials | `Sources/PalmierPro/Generation/GenerationCredentialStore.swift` |
 | Provider selection and normalized jobs | `Sources/PalmierPro/Generation/GenerationCoordinator.swift` |
+| Codex GPT Image 2 request contract | `Sources/PalmierPro/Generation/CodexImageGeneration.swift` |
 | CreatorStudio gateway | `Sources/PalmierPro/Generation/CreatorStudioAPIClient.swift` |
 | Direct Fal queue | `Sources/PalmierPro/Generation/FalQueueClient.swift` |
 | ElevenLabs | `Sources/PalmierPro/Generation/ElevenLabsClient.swift` |

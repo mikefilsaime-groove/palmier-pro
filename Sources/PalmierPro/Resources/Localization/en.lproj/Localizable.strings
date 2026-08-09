@@ -43,6 +43,8 @@
 "1 item" = "1 item";
 "1 media file is missing and will be skipped." = "1 media file is missing and will be skipped.";
 "1 section" = "1 section";
+"1. Open a new chat in Codex or Claude Code." = "1. Open a new chat in Codex or Claude Code.";
+"2. Paste these instructions:" = "2. Paste these instructions:";
 "= %lld credits" = "= %lld credits";
 "= 1 credit" = "= 1 credit";
 "AI Audio" = "AI Audio";
@@ -104,7 +106,6 @@
 "Audio" = "Audio";
 "Audio Ref" = "Audio Ref";
 "Audio extraction failed: %@" = "Audio extraction failed: %@";
-"Authorize this code with your authenticated ClickCampaigns GodMode MCP:" = "Authorize this code with your authenticated ClickCampaigns GodMode MCP:";
 "Auto" = "Auto";
 "Available" = "Available";
 "Back" = "Back";
@@ -450,6 +451,7 @@
 "Image" = "Image";
 "Image Adjustment" = "Image Adjustment";
 "Image Ref" = "Image Ref";
+"Image generation" = "Image generation";
 "Import" = "Import";
 "Import Media" = "Import Media";
 "Import Media…" = "Import Media…";
@@ -663,6 +665,7 @@
 "Pointer (V)" = "Pointer (V)";
 "Pop In" = "Pop In";
 "Position" = "Position";
+"Prefer Codex GPT Image 2" = "Prefer Codex GPT Image 2";
 "Preparing" = "Preparing";
 "Preparing…" = "Preparing…";
 "Presence" = "Presence";
@@ -936,6 +939,7 @@
 "Use your own API key for AI chat. Stored in the macOS Keychain." = "Use your own API key for AI chat. Stored in the macOS Keychain.";
 "Used only when CreatorStudio confirms that no Fal.ai key is on file." = "Used only when CreatorStudio confirms that no Fal.ai key is on file.";
 "Uses selected clips when available, otherwise all captionable audio. Choose a track to limit captions." = "Uses selected clips when available, otherwise all captionable audio. Choose a track to limit captions.";
+"Uses the signed-in Codex subscription allowance by default. Fal.ai image models remain available in the model picker." = "Uses the signed-in Codex subscription allowance by default. Fal.ai image models remain available in the model picker.";
 "Uses the whole timeline by default. Mark a range on the timeline to score only that span." = "Uses the whole timeline by default. Mark a range on the timeline to score only that span.";
 "Validate and save" = "Validate and save";
 "Verify GodMode" = "Verify GodMode";

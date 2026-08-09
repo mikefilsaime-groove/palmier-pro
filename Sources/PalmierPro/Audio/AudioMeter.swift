@@ -14,6 +14,19 @@ struct AudioMeterChannelDisplay: Sendable, Equatable {
 
 struct StereoAudioMeterDisplay: Sendable, Equatable {
     let left, right: AudioMeterChannelDisplay
+
+    static let silence = StereoAudioMeterDisplay(
+        left: AudioMeterChannelDisplay(
+            levelDb: AudioMeterChannelState.floorDb,
+            peakDb: AudioMeterChannelState.floorDb,
+            clipped: false
+        ),
+        right: AudioMeterChannelDisplay(
+            levelDb: AudioMeterChannelState.floorDb,
+            peakDb: AudioMeterChannelState.floorDb,
+            clipped: false
+        )
+    )
 }
 
 struct AudioMeterChannelState: Sendable {

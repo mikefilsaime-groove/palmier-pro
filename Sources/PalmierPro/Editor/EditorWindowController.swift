@@ -45,7 +45,7 @@ final class EditorWindowController: NSWindowController, NSWindowDelegate {
             forName: NSText.didEndEditingNotification, object: nil, queue: .main
         ) { [weak self] note in
             nonisolated(unsafe) let object = note.object
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 guard let self, let editor = object as? NSTextView,
                       editor.window === self.window, let storage = editor.textStorage else { return }
                 self.editorViewModel.undo.removeAllActions(withTarget: storage)

@@ -200,7 +200,7 @@ private struct ScrubMouseArea: NSViewRepresentable {
         private var dragStartWindowX: CGFloat = 0
         private var isDragging = false
 
-        override var acceptsFirstResponder: Bool { false }
+        nonisolated override var acceptsFirstResponder: Bool { false }
 
         override func resetCursorRects() {
             addCursorRect(bounds, cursor: .resizeLeftRight)
