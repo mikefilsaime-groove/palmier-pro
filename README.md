@@ -6,7 +6,7 @@ The app requires macOS 26 (Tahoe) on Apple Silicon.
 
 ## Download the Mac preview
 
-[Download CreatorStudio Editor for Mac](https://github.com/mikefilsaime-groove/palmier-pro/releases/download/creatorstudio-v0.1.0/CreatorStudioEditor.dmg)
+[Download CreatorStudio Editor for Mac](https://github.com/mikefilsaime-groove/palmier-pro/releases/latest/download/CreatorStudioEditor.dmg)
 
 This first public preview is ad-hoc signed but not Apple-notarized. Drag the app to Applications, then Control-click **CreatorStudio Editor**, choose **Open**, and confirm. If macOS still blocks the first launch, use **System Settings → Privacy & Security → Open Anyway**.
 

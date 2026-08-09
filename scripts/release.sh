@@ -3,13 +3,13 @@ set -euo pipefail
 
 # Usage:
 #   scripts/release.sh <version>              # Developer ID + notarized release
-#   scripts/release.sh <version> --unsigned   # ad-hoc signed public preview
+#   scripts/release.sh <version> --unsigned   # ad-hoc signed public release
 #
 # Full release pipeline:
 #   1. Preflight (on fal-integration, tree clean, tag free, in sync with origin)
 #   2. Bump CFBundleShortVersionString + auto-increment CFBundleVersion
 #   3. Prompt for release notes in $EDITOR (prefilled with recent commits)
-#   4. Build a notarized or unsigned preview DMG
+#   4. Build a notarized or unsigned DMG
 #   5. Commit + push version bump
 #   6. Tag + push tag
 #   7. gh release create with the DMG and notes
@@ -157,12 +157,13 @@ git tag "$TAG"
 git push origin "$TAG"
 
 echo "==> Creating GH release"
-GH_RELEASE_ARGS=(release create "$TAG" "$DMG" --repo "$RELEASE_REPOSITORY" --notes-file "$NOTES_CLEAN")
-if [ "$RELEASE_MODE" = "unsigned" ]; then
-  GH_RELEASE_ARGS+=(--prerelease --title "CreatorStudio Editor $VERSION Preview")
-else
-  GH_RELEASE_ARGS+=(--title "CreatorStudio Editor $VERSION")
-fi
+GH_RELEASE_ARGS=(
+  release create "$TAG" "$DMG"
+  --repo "$RELEASE_REPOSITORY"
+  --notes-file "$NOTES_CLEAN"
+  --title "CreatorStudio Editor $VERSION"
+  --latest
+)
 gh "${GH_RELEASE_ARGS[@]}"
 
 echo "==> Updating creatorstudio-appcast.xml"
