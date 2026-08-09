@@ -18,6 +18,17 @@ struct GodModeLeaseTests {
         #expect(GodModeAccess.active(expiresAt: .distantFuture).permitsProtectedFeatures)
     }
 
+    @Test func pairingBackoffHonorsServerDelay() {
+        #expect(CreatorStudioSession.pairingRetryDelay(retryAfterHeader: "17") == 17)
+    }
+
+    @Test func pairingBackoffBoundsInvalidServerDelay() {
+        #expect(CreatorStudioSession.pairingRetryDelay(retryAfterHeader: nil) == 5)
+        #expect(CreatorStudioSession.pairingRetryDelay(retryAfterHeader: "invalid") == 5)
+        #expect(CreatorStudioSession.pairingRetryDelay(retryAfterHeader: "0") == 1)
+        #expect(CreatorStudioSession.pairingRetryDelay(retryAfterHeader: "600") == 60)
+    }
+
     @Test func rejectsInsecureAPIDestinations() {
         #expect(throws: (any Error).self) {
             try CreatorStudioConfiguration.load(environment: [

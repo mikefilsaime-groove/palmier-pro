@@ -61,13 +61,7 @@ final class CreatorStudioSession {
     private(set) var pairingExpiresAt: Date?
     private(set) var lastError: String?
     private(set) var configuration: CreatorStudioConfiguration?
-
-    var isSignedIn: Bool {
-        #if DEBUG
-        if usesLocalGodModeBypass { return true }
-        #endif
-        return appToken != nil
-    }
+    private(set) var isSignedIn = false
     var isConfigured: Bool { configuration != nil }
     var canUseProtectedFeatures: Bool { access.permitsProtectedFeatures }
     var pairingInstructions: String? {
@@ -105,6 +99,7 @@ final class CreatorStudioSession {
         #if DEBUG
         if LocalGodModeBypass.isRequested() {
             usesLocalGodModeBypass = true
+            isSignedIn = true
             displayName = "Local GodMode Test"
             access = .active(expiresAt: .distantFuture)
             falConnection = .missing
@@ -157,13 +152,22 @@ final class CreatorStudioSession {
             while Date() < expiry {
                 try Task.checkCancellation()
                 guard pairingAttemptID == attemptID else { return }
-                let exchange = try await exchangePairing(pairing, using: configuration)
+                let exchange: PairingExchangeResponse
+                do {
+                    exchange = try await exchangePairing(pairing, using: configuration)
+                } catch SessionError.pairingRateLimited(let retryAfter) {
+                    let remaining = expiry.timeIntervalSinceNow
+                    guard remaining > 0 else { break }
+                    try await Task.sleep(for: .seconds(min(retryAfter, remaining)))
+                    continue
+                }
                 guard pairingAttemptID == attemptID else { return }
                 if exchange.status == "approved" {
                     guard let token = exchange.accessToken, token.hasPrefix("cliauth-") else {
                         throw SessionError.invalidPairingResponse
                     }
                     appToken = token
+                    isSignedIn = true
                     try await SecureKeychain.save(
                         AppTokenRecord(accessToken: token, subject: nil),
                         account: tokenAccount
@@ -362,6 +366,7 @@ final class CreatorStudioSession {
     private func restore() async {
         if let record: AppTokenRecord = try? await SecureKeychain.load(AppTokenRecord.self, account: tokenAccount) {
             appToken = record.accessToken
+            isSignedIn = true
             subject = record.subject
             displayName = "ClickCampaigns GodMode"
         }
@@ -404,10 +409,26 @@ final class CreatorStudioSession {
         request.httpBody = try JSONEncoder().encode(PairingExchangeRequest(pollSecret: pairing.pollSecret))
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw SessionError.invalidResponse }
+        if http.statusCode == 429 {
+            throw SessionError.pairingRateLimited(
+                retryAfter: Self.pairingRetryDelay(
+                    retryAfterHeader: http.value(forHTTPHeaderField: "Retry-After")
+                )
+            )
+        }
         guard http.statusCode == 200 || http.statusCode == 202 else {
             throw APIError.decode(data: data, status: http.statusCode)
         }
         return try Self.decoder.decode(PairingExchangeResponse.self, from: data)
+    }
+
+    static func pairingRetryDelay(retryAfterHeader: String?) -> TimeInterval {
+        guard let retryAfterHeader,
+              let seconds = TimeInterval(retryAfterHeader.trimmingCharacters(in: .whitespacesAndNewlines)),
+              seconds.isFinite else {
+            return 5
+        }
+        return min(max(seconds, 1), 60)
     }
 
     private func fetchLeaseKey(for lease: String) async throws -> Data {
@@ -439,6 +460,7 @@ final class CreatorStudioSession {
 
     private func clearAllCredentials() async {
         appToken = nil
+        isSignedIn = false
         subject = nil
         signedLease = nil
         leasePublicKey = nil
@@ -608,6 +630,7 @@ private enum SessionError: LocalizedError {
     case invalidResponse
     case invalidPairingResponse
     case pairingExpired
+    case pairingRateLimited(retryAfter: TimeInterval)
     case invalidLeaseKey
     case invalidLease
 
@@ -618,6 +641,7 @@ private enum SessionError: LocalizedError {
         case .invalidResponse: "The authentication server returned an invalid response."
         case .invalidPairingResponse: "The ClickCampaigns MCP pairing response could not be verified."
         case .pairingExpired: "The ClickCampaigns MCP pairing code expired. Start again."
+        case .pairingRateLimited: "ClickCampaigns asked CreatorStudio Editor to wait before checking again."
         case .invalidLeaseKey, .invalidLease: "The GodMode offline lease could not be verified."
         }
     }
