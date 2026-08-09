@@ -42,6 +42,17 @@ final class SampleProjectService {
     }
 
     private var baseURL: URL? { BackendConfig.sampleProjectBaseURL }
+    private let installedSamplesKey = "creatorstudio.installedSampleProjects"
+
+    func wasInstalled(slug: String) -> Bool {
+        Set(UserDefaults.standard.stringArray(forKey: installedSamplesKey) ?? []).contains(slug)
+    }
+
+    func markInstalled(slug: String) {
+        var installed = Set(UserDefaults.standard.stringArray(forKey: installedSamplesKey) ?? [])
+        installed.insert(slug)
+        UserDefaults.standard.set(installed.sorted(), forKey: installedSamplesKey)
+    }
 
     // MARK: - Listing
 

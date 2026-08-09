@@ -109,6 +109,7 @@
 "Auto" = "Auto";
 "Available" = "Available";
 "Back" = "Back";
+"Back to application" = "Back to application";
 "Background" = "Background";
 "Basic Correction" = "Basic Correction";
 "Beat detection failed. Check that the media file is reachable, then retry." = "Beat detection failed. Check that the media file is reachable, then retry.";
@@ -746,7 +747,6 @@
 "Run this command once in Terminal." = "Run this command once in Terminal.";
 "Running on" = "Running on";
 "Sample Key Color" = "Sample Key Color";
-"Sample Project" = "Sample Project";
 "Sample key color" = "Sample key color";
 "Sat" = "Sat";
 "Saturation" = "Saturation";

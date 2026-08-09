@@ -41,7 +41,7 @@ extension GenerationView {
     var submitButton: some View {
         Button {
             if aiAllowed { submitGeneration() }
-            else if account.isSignedIn { SettingsWindowController.shared.show(tab: .account) }
+            else if account.isSignedIn { SettingsCoordinator.shared.show(tab: .account) }
             else if !account.isMisconfigured { account.connectGodModeMCP() }
         } label: {
             Image(systemName: aiAllowed ? "arrow.up" : "person.crop.circle")
@@ -185,7 +185,7 @@ extension GenerationView {
 
     private func submitGeneration() {
         if currentModelLocked {
-            SettingsWindowController.shared.show(tab: .account)
+            SettingsCoordinator.shared.show(tab: .account)
             return
         }
         let audioDuration: Int = {

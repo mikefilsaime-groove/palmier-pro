@@ -353,15 +353,15 @@ struct AgentPanelView: View {
         switch error {
         case .unauthenticated:
             return ErrorCTA(title: L10n.string("Connect GodMode MCP")) {
-                SettingsWindowController.shared.show(tab: .account)
+                SettingsCoordinator.shared.show(tab: .account)
             }
         case .insufficientCredits:
             return ErrorCTA(title: L10n.string("View plans")) {
-                SettingsWindowController.shared.show(tab: .account)
+                SettingsCoordinator.shared.show(tab: .account)
             }
         case .unavailable:
             return ErrorCTA(title: L10n.string("Open Settings")) {
-                SettingsWindowController.shared.show(tab: .agent)
+                SettingsCoordinator.shared.show(tab: .agent)
             }
         case .refusal, .upstream:
             return nil
@@ -422,7 +422,7 @@ struct AgentPanelView: View {
                     .foregroundStyle(AppTheme.Text.mutedColor)
                     .multilineTextAlignment(.center)
 
-                Button(action: { SettingsWindowController.shared.show(tab: .agent) }) {
+                Button(action: { SettingsCoordinator.shared.show(tab: .agent) }) {
                     Text(service.model.provider.chatPresentation.missingKeyLinkTitle)
                 }
                 .buttonStyle(.capsule(.prominent, size: .regular))
@@ -433,7 +433,7 @@ struct AgentPanelView: View {
                     .multilineTextAlignment(.center)
 
                 Button(L10n.string("Connect GodMode MCP")) {
-                    SettingsWindowController.shared.show(tab: .account)
+                    SettingsCoordinator.shared.show(tab: .account)
                 }
                 .buttonStyle(.capsule(.prominent, size: .regular))
             }

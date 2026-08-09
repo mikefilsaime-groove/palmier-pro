@@ -2,40 +2,44 @@ import SwiftUI
 
 struct TitleBarLeadingView: View {
     @Environment(EditorViewModel.self) var editor
+    let settingsTarget: SettingsPresentationTarget
+    @Bindable private var settings = SettingsCoordinator.shared
 
     var body: some View {
-        HStack(spacing: AppTheme.Spacing.smMd) {
-            Button(action: { editor.agentPanelVisible.toggle() }) {
-                HStack(spacing: AppTheme.Spacing.xs) {
-                    Image(systemName: editor.agentPanelVisible ? "bubble.left.fill" : "bubble.left")
-                        .foregroundStyle(AppTheme.aiGradient)
-                        .opacity(editor.agentPanelVisible ? 1 : AppTheme.Opacity.strong)
-                        .frame(width: AppTheme.IconSize.sm, height: AppTheme.IconSize.sm)
-                    Text(L10n.string("Chat"))
-                        .foregroundStyle(AppTheme.Text.secondaryColor)
+        if !settings.isPresented(in: settingsTarget) {
+            HStack(spacing: AppTheme.Spacing.smMd) {
+                Button(action: { editor.agentPanelVisible.toggle() }) {
+                    HStack(spacing: AppTheme.Spacing.xs) {
+                        Image(systemName: editor.agentPanelVisible ? "bubble.left.fill" : "bubble.left")
+                            .foregroundStyle(AppTheme.aiGradient)
+                            .opacity(editor.agentPanelVisible ? 1 : AppTheme.Opacity.strong)
+                            .frame(width: AppTheme.IconSize.sm, height: AppTheme.IconSize.sm)
+                        Text(L10n.string("Chat"))
+                            .foregroundStyle(AppTheme.Text.secondaryColor)
+                    }
+                    .font(.system(size: AppTheme.FontSize.sm, weight: AppTheme.FontWeight.medium))
+                    .padding(.horizontal, AppTheme.Spacing.sm)
+                    .frame(height: AppTheme.IconSize.lg)
+                    .hoverHighlight()
                 }
-                .font(.system(size: AppTheme.FontSize.sm, weight: AppTheme.FontWeight.medium))
-                .padding(.horizontal, AppTheme.Spacing.sm)
-                .frame(height: AppTheme.IconSize.lg)
-                .hoverHighlight()
-            }
-            .buttonStyle(.plain)
-            .help(L10n.string("Toggle Agent Panel"))
+                .buttonStyle(.plain)
+                .help(L10n.string("Toggle Agent Panel"))
 
-            HStack(spacing: AppTheme.Spacing.xxs) {
-                PanelVisibilityButton(
-                    systemName: "sidebar.left",
-                    label: L10n.string("Media Panel"),
-                    isVisible: editor.mediaPanelVisible
-                ) {
-                    editor.mediaPanelVisible.toggle()
-                }
-                PanelVisibilityButton(
-                    systemName: "sidebar.right",
-                    label: L10n.string("Inspector Panel"),
-                    isVisible: editor.inspectorPanelVisible
-                ) {
-                    editor.inspectorPanelVisible.toggle()
+                HStack(spacing: AppTheme.Spacing.xxs) {
+                    PanelVisibilityButton(
+                        systemName: "sidebar.left",
+                        label: L10n.string("Media Panel"),
+                        isVisible: editor.mediaPanelVisible
+                    ) {
+                        editor.mediaPanelVisible.toggle()
+                    }
+                    PanelVisibilityButton(
+                        systemName: "sidebar.right",
+                        label: L10n.string("Inspector Panel"),
+                        isVisible: editor.inspectorPanelVisible
+                    ) {
+                        editor.inspectorPanelVisible.toggle()
+                    }
                 }
             }
         }
@@ -44,6 +48,8 @@ struct TitleBarLeadingView: View {
 
 struct TitleBarTrailingView: View {
     @Environment(EditorViewModel.self) var editor
+    let settingsTarget: SettingsPresentationTarget
+    @Bindable private var settings = SettingsCoordinator.shared
     @State private var exportQueue = ExportQueue.shared
 
     var body: some View {
@@ -51,39 +57,41 @@ struct TitleBarTrailingView: View {
         let activeCount = jobs.count { $0.status.isRunning }
         let waitingCount = jobs.count { $0.status == .waiting }
 
-        HStack(spacing: AppTheme.Spacing.sm) {
-            Spacer(minLength: AppTheme.Spacing.zero)
+        if !settings.isPresented(in: settingsTarget) {
+            HStack(spacing: AppTheme.Spacing.sm) {
+                Spacer(minLength: AppTheme.Spacing.zero)
 
-            UpdateProjectBadge()
+                UpdateProjectBadge()
 
-            Button(action: { editor.showExportDialog = true }) {
-                HStack(spacing: AppTheme.Spacing.xs) {
-                    Group {
-                        if activeCount > 0 {
-                            exportActivityDot
-                        } else {
-                            Image(systemName: "square.and.arrow.up")
-                                .offset(y: -1)
+                Button(action: { editor.showExportDialog = true }) {
+                    HStack(spacing: AppTheme.Spacing.xs) {
+                        Group {
+                            if activeCount > 0 {
+                                exportActivityDot
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                                    .offset(y: -1)
+                            }
                         }
+                        .frame(width: AppTheme.IconSize.sm, height: AppTheme.IconSize.sm)
+                        Text(L10n.string("Export"))
                     }
-                    .frame(width: AppTheme.IconSize.sm, height: AppTheme.IconSize.sm)
-                    Text(L10n.string("Export"))
+                    .font(.system(size: AppTheme.FontSize.sm, weight: AppTheme.FontWeight.medium))
+                    .foregroundStyle(AppTheme.Text.secondaryColor)
+                    .padding(.horizontal, AppTheme.Spacing.sm)
+                    .frame(height: AppTheme.IconSize.lg)
+                    .hoverHighlight()
+                    .help(L10n.string("Export (⌘E)"))
                 }
-                .font(.system(size: AppTheme.FontSize.sm, weight: AppTheme.FontWeight.medium))
-                .foregroundStyle(AppTheme.Text.secondaryColor)
-                .padding(.horizontal, AppTheme.Spacing.sm)
-                .frame(height: AppTheme.IconSize.lg)
-                .hoverHighlight()
-                .help(L10n.string("Export (⌘E)"))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(
-                activeCount == 0 && waitingCount == 0
-                    ? L10n.string("Export")
-                    : L10n.string("Export, \(activeCount) active, \(waitingCount) waiting")
-            )
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    activeCount == 0 && waitingCount == 0
+                        ? L10n.string("Export")
+                        : L10n.string("Export, \(activeCount) active, \(waitingCount) waiting")
+                )
 
-            UserAvatarButton()
+                UserAvatarButton()
+            }
         }
     }
 

@@ -119,7 +119,7 @@ extension GenerationView {
             }
             Divider()
             Button {
-                SettingsWindowController.shared.show(tab: .models)
+                SettingsCoordinator.shared.show(tab: .models)
             } label: {
                 Label(L10n.string("Add models…"), systemImage: "plus")
             }

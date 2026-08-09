@@ -221,7 +221,7 @@ final class AppState {
 
     func createProjectInteractively() {
         guard CreatorStudioSession.shared.canUseProtectedFeatures else {
-            SettingsWindowController.shared.show(tab: .account)
+            SettingsCoordinator.shared.show(tab: .account)
             return
         }
         Telemetry.beginOperation("save_panel", data: ["flow": "project_create"])
@@ -349,11 +349,13 @@ final class AppState {
     func openSample(slug: String, startTutorial: Bool, onProgress: @escaping (Double) -> Void = { _ in }) async throws {
         let options = ProjectOpenOptions(startTutorial: startTutorial)
         if let cached = SampleProjectService.shared.cachedURL(slug: slug) {
-            try await openProjectAsync(at: cached, register: false, options: options)
+            try await openProjectAsync(at: cached, options: options)
+            SampleProjectService.shared.markInstalled(slug: slug)
             return
         }
         let url = try await SampleProjectService.shared.materialize(slug: slug, onProgress: onProgress)
-        try await openProjectAsync(at: url, register: false, options: options)
+        try await openProjectAsync(at: url, options: options)
+        SampleProjectService.shared.markInstalled(slug: slug)
     }
 
     func openProjectFromPanel() {

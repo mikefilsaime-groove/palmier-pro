@@ -119,7 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     @objc func showSettings(_ sender: Any?) {
-        SettingsWindowController.shared.show()
+        SettingsCoordinator.shared.show()
     }
 
     @MainActor

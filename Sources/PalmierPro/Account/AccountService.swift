@@ -94,7 +94,7 @@ final class AccountService {
     private init() {}
 
     func configure() { session.configure() }
-    func connectGodModeMCP() { SettingsWindowController.shared.show(tab: .account) }
+    func connectGodModeMCP() { SettingsCoordinator.shared.show(tab: .account) }
     func signOut() async { await session.signOut() }
 
     func subscribe(tier: AccountTier) async { openGodModeDashboard() }

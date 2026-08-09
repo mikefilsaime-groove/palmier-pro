@@ -18,6 +18,8 @@ struct MyProjectsSection: View {
     @State private var selectedProjectIDs: Set<UUID> = []
     @State private var projectsPendingDeletion: [ProjectEntry] = []
     @State private var deletionMessage: String?
+    @State private var samples = SampleProjectService.defaultSummaries
+    @State private var activeSampleDownload: SampleDownload?
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
@@ -26,6 +28,12 @@ struct MyProjectsSection: View {
             projectGrid
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .task {
+            guard let fetched = try? await SampleProjectService.shared.fetchSamples(), !fetched.isEmpty else {
+                return
+            }
+            samples = fetched
+        }
     }
 
     private var toolbar: some View {
@@ -136,16 +144,28 @@ struct MyProjectsSection: View {
 
     private var projectGrid: some View {
         let entries = filteredEntries
+        let availableSamples = filteredSamples
         return ScrollView {
             LazyVGrid(columns: columns, alignment: .leading, spacing: AppTheme.Spacing.xl) {
-                if ProjectRegistry.shared.entries.isEmpty {
-                    NewProjectCard(action: { AppState.shared.createProjectInteractively() })
-                } else if entries.isEmpty {
+                if entries.isEmpty && availableSamples.isEmpty && !searchQuery.isEmpty {
                     Text(L10n.string("No projects found"))
                         .font(.system(size: AppTheme.FontSize.sm))
                         .foregroundStyle(AppTheme.Text.mutedColor)
                         .padding(.vertical, AppTheme.Spacing.xl)
                 } else {
+                    if !isSelecting {
+                        ForEach(availableSamples) { sample in
+                            SampleProjectCard(
+                                sample: sample,
+                                download: activeSampleDownload?.slug == sample.slug
+                                    ? activeSampleDownload
+                                    : nil
+                            ) {
+                                openSample(sample)
+                            }
+                        }
+                    }
+
                     ForEach(entries) { entry in
                         ProjectCard(
                             entry: entry,
@@ -156,6 +176,10 @@ struct MyProjectsSection: View {
                             onSelect: { toggleSelection(entry.id) },
                             onDelete: { requestDeletion([entry]) }
                         )
+                    }
+
+                    if ProjectRegistry.shared.entries.isEmpty && searchQuery.isEmpty {
+                        NewProjectCard(action: { AppState.shared.createProjectInteractively() })
                     }
                 }
             }
@@ -170,6 +194,27 @@ struct MyProjectsSection: View {
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return ProjectRegistry.shared.sortedEntries }
         return ProjectRegistry.shared.sortedEntries.filter { $0.name.localizedStandardContains(query) }
+    }
+
+    private var filteredSamples: [SampleProjectService.Summary] {
+        let available = samples.filter { !SampleProjectService.shared.wasInstalled(slug: $0.slug) }
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return available }
+        return available.filter { $0.title.localizedStandardContains(query) }
+    }
+
+    private func openSample(_ sample: SampleProjectService.Summary) {
+        activeSampleDownload = SampleDownload(slug: sample.slug)
+        Task {
+            do {
+                try await AppState.shared.openSample(slug: sample.slug, startTutorial: true) { progress in
+                    activeSampleDownload?.progress = progress
+                }
+                activeSampleDownload = nil
+            } catch {
+                activeSampleDownload?.failed = true
+            }
+        }
     }
 
     private var deletionTitle: String {

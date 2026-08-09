@@ -34,7 +34,6 @@ struct HomeView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            SampleProjectsStrip()
             MyProjectsSection()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -113,7 +112,7 @@ private struct HomeSidebar: View {
             SidebarRowButton(
                 label: L10n.string("Settings"),
                 systemImage: "gearshape",
-                action: { SettingsWindowController.shared.show() }
+                action: { SettingsCoordinator.shared.show() }
             )
             .padding(.horizontal, AppTheme.Spacing.smMd)
             .padding(.bottom, AppTheme.Spacing.md)
@@ -129,7 +128,12 @@ final class HomeWindowController: NSWindowController {
     static let shared = HomeWindowController()
 
     private init() {
-        let hostingController = NSHostingController(rootView: HomeView().appLocalization().tint(AppTheme.Accent.primary))
+        let rootView = ApplicationSettingsHost(target: .home) {
+            HomeView()
+        }
+        let hostingController = NSHostingController(
+            rootView: rootView.appLocalization().tint(AppTheme.Accent.primary)
+        )
         hostingController.sizingOptions = .minSize
         let window = NSWindow(contentViewController: hostingController)
         window.setContentSize(AppTheme.Window.homeDefault)

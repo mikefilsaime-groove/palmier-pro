@@ -155,11 +155,11 @@ struct TourOverlay: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             VStack(spacing: 0) {
-                linkRow(L10n.string("Skills"), "book.closed.fill") { SettingsWindowController.shared.show(tab: .skills) }
+                linkRow(L10n.string("Skills"), "book.closed.fill") { SettingsCoordinator.shared.show(tab: .skills) }
                 linkRow(L10n.string("MCP Setup"), "puzzlepiece.extension.fill") { HelpWindowController.shared.show(tab: .mcp) }
                 linkRow(L10n.string("Keyboard Shortcuts"), "keyboard") { HelpWindowController.shared.show(tab: .shortcuts) }
                 linkRow(L10n.string("Documentation"), "book.fill") { NSWorkspace.shared.open(Self.docsURL, configuration: .init(), completionHandler: nil) }
-                linkRow(L10n.string("Settings"), "gearshape.fill") { SettingsWindowController.shared.show() }
+                linkRow(L10n.string("Settings"), "gearshape.fill") { SettingsCoordinator.shared.show() }
             }
             HStack {
                 Spacer()

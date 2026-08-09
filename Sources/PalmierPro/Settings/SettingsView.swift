@@ -39,9 +39,11 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @Bindable private var account = AccountService.shared
     @State private var selectedTab: SettingsTab
+    let onDismiss: () -> Void
 
-    init(initialTab: SettingsTab = .account) {
+    init(initialTab: SettingsTab = .account, onDismiss: @escaping () -> Void = {}) {
         _selectedTab = State(initialValue: initialTab)
+        self.onDismiss = onDismiss
     }
 
     private var visibleTabs: [SettingsTab] {
@@ -52,7 +54,11 @@ struct SettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            SettingsSidebar(selectedTab: $selectedTab, visibleTabs: visibleTabs)
+            SettingsSidebar(
+                selectedTab: $selectedTab,
+                visibleTabs: visibleTabs,
+                onDismiss: onDismiss
+            )
                 .frame(width: AppTheme.Settings.sidebarWidth)
 
             SettingsDetail(tab: selectedTab)
@@ -78,10 +84,28 @@ struct SettingsView: View {
 private struct SettingsSidebar: View {
     @Binding var selectedTab: SettingsTab
     let visibleTabs: [SettingsTab]
+    let onDismiss: () -> Void
     @Bindable private var account = AccountService.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            Button(action: onDismiss) {
+                HStack(spacing: AppTheme.Spacing.xs) {
+                    Image(systemName: "chevron.left")
+                        .frame(width: AppTheme.IconSize.sm, height: AppTheme.IconSize.sm)
+                    Text(L10n.string("Back to application"))
+                }
+                .font(.system(size: AppTheme.FontSize.sm, weight: AppTheme.FontWeight.medium))
+                .foregroundStyle(AppTheme.Text.secondaryColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, AppTheme.Spacing.sm)
+                .frame(height: AppTheme.IconSize.xl)
+                .hoverHighlight()
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, AppTheme.Spacing.smMd)
+            .padding(.top, AppTheme.Spacing.md)
+
             if !account.isMisconfigured {
                 IdentityStrip()
             }
@@ -223,49 +247,6 @@ struct SettingsToggleRow: View {
                 .accessibilityHint(subtitle)
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-@MainActor
-final class SettingsWindowController: NSWindowController {
-    static let shared = SettingsWindowController()
-
-    private var hosting: NSHostingController<AnyView>?
-
-    private init() {
-        let initialView = SettingsView().tint(AppTheme.Accent.primary)
-        let hosting = NSHostingController(rootView: AnyView(initialView.appLocalization()))
-        hosting.sizingOptions = .minSize
-        let window = NSWindow(contentViewController: hosting)
-        window.setContentSize(AppTheme.Window.settingsDefault)
-        window.minSize = AppTheme.Window.settingsMin
-        window.title = L10n.string("Settings")
-        window.backgroundColor = AppTheme.Background.base.withAlphaComponent(0.4)
-        window.isOpaque = false
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
-        window.styleMask.insert(.fullSizeContentView)
-        window.center()
-        self.hosting = hosting
-        super.init(window: window)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError() }
-
-    func show(tab: SettingsTab? = nil) {
-        if let tab {
-            hosting?.rootView = AnyView(
-                SettingsView(initialTab: tab)
-                    .id(UUID())
-                    .appLocalization()
-                    .tint(AppTheme.Accent.primary)
-            )
-        }
-        showWindow(nil)
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 }
 

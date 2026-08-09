@@ -117,7 +117,7 @@ struct ModelsPane: View {
             Spacer(minLength: AppTheme.Spacing.lg)
             if locked {
                 Button(L10n.string("Verify GodMode")) {
-                    SettingsWindowController.shared.show(tab: .account)
+                    SettingsCoordinator.shared.show(tab: .account)
                 }
                 .buttonStyle(.capsule(.secondary))
             } else {

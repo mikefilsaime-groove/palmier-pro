@@ -93,7 +93,7 @@ struct AIEditMenu: View {
     ) -> some View {
         if action.requiresPaidPlan && !AccountService.shared.isPaid {
             Button {
-                SettingsWindowController.shared.show(tab: .account)
+                SettingsCoordinator.shared.show(tab: .account)
             } label: {
                 Label(L10n.string("\(title) (Paid)"), systemImage: "lock.fill")
             }

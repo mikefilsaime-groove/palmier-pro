@@ -463,7 +463,8 @@ class VideoProject: NSDocument {
         editorViewModel.enhancePendingDenoises()
         if editorViewModel.markSpeakers { editorViewModel.identifySpeakers() }
 
-        let editorView = EditorView()
+        let settingsTarget = SettingsPresentationTarget.project(ObjectIdentifier(self))
+        let editorContent = EditorView()
             .environment(editorViewModel)
             .focusEffectDisabled()
             .background(.ultraThickMaterial)
@@ -479,6 +480,9 @@ class VideoProject: NSDocument {
                 TourOverlay()
                     .environment(editorViewModel)
             }
+        let editorView = ApplicationSettingsHost(target: settingsTarget) {
+            editorContent
+        }
         let hostingController = NSHostingController(rootView: editorView.appLocalization().tint(AppTheme.Accent.primary))
         hostingController.sizingOptions = .minSize
 
@@ -491,8 +495,16 @@ class VideoProject: NSDocument {
         window.styleMask.insert(.fullSizeContentView)
         window.fillVisibleScreen()
 
-        window.addTitlebarSwiftUI(TitleBarLeadingView().environment(editorViewModel), side: .leading, width: AppTheme.Window.projectTitlebarLeadingWidth)
-        window.addTitlebarSwiftUI(TitleBarTrailingView().environment(editorViewModel), side: .trailing, width: AppTheme.Window.projectTitlebarTrailingWidth)
+        window.addTitlebarSwiftUI(
+            TitleBarLeadingView(settingsTarget: settingsTarget).environment(editorViewModel),
+            side: .leading,
+            width: AppTheme.Window.projectTitlebarLeadingWidth
+        )
+        window.addTitlebarSwiftUI(
+            TitleBarTrailingView(settingsTarget: settingsTarget).environment(editorViewModel),
+            side: .trailing,
+            width: AppTheme.Window.projectTitlebarTrailingWidth
+        )
 
         let controller = EditorWindowController(editorViewModel: editorViewModel, window: window)
         controller.onBecameKey = { [weak self] in

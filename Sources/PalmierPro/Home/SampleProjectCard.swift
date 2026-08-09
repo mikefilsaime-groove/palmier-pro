@@ -1,84 +1,12 @@
 import SwiftUI
 
-struct SampleProjectsStrip: View {
-    @State private var samples = SampleProjectService.defaultSummaries
-    @State private var activeDownload: SampleDownload?
-    @AppStorage("samplesSectionExpanded") private var isExpanded = true
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if !samples.isEmpty {
-                strip
-            }
-        }
-        .task {
-            guard let fetched = try? await SampleProjectService.shared.fetchSamples(), !fetched.isEmpty else { return }
-            samples = fetched
-        }
-    }
-
-    private var strip: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.sm) {
-            Button {
-                withAnimation(.easeInOut(duration: AppTheme.Anim.transition)) { isExpanded.toggle() }
-            } label: {
-                HStack(spacing: AppTheme.Spacing.xs) {
-                    Text(L10n.string("Sample Project"))
-                        .font(.system(size: AppTheme.FontSize.md, weight: AppTheme.FontWeight.regular))
-                        .foregroundStyle(AppTheme.Text.primaryColor)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: AppTheme.FontSize.xs, weight: AppTheme.FontWeight.regular))
-                        .foregroundStyle(AppTheme.Text.tertiaryColor)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if isExpanded {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppTheme.Spacing.md) {
-                        ForEach(samples) { sample in
-                            SampleCard(
-                                sample: sample,
-                                download: activeDownload?.slug == sample.slug ? activeDownload : nil
-                            ) { start(sample) }
-                        }
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, AppTheme.Spacing.xlXxl)
-        .padding(.bottom, AppTheme.Spacing.xxl)
-    }
-
-    private func start(_ sample: SampleProjectService.Summary) {
-        if SampleProjectService.shared.cachedURL(slug: sample.slug) != nil {
-            Task { try? await AppState.shared.openSample(slug: sample.slug, startTutorial: true) }
-            return
-        }
-        activeDownload = SampleDownload(slug: sample.slug)
-        Task {
-            do {
-                try await AppState.shared.openSample(slug: sample.slug, startTutorial: true) { progress in
-                    activeDownload?.progress = progress
-                }
-                activeDownload = nil
-            } catch {
-                activeDownload?.failed = true
-            }
-        }
-    }
-}
-
 struct SampleDownload {
     let slug: String
     var progress: Double = 0
     var failed = false
 }
 
-private struct SampleCard: View {
+struct SampleProjectCard: View {
     let sample: SampleProjectService.Summary
     let download: SampleDownload?
     let action: () -> Void

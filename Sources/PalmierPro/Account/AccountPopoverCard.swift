@@ -33,7 +33,7 @@ struct AccountPopoverCard: View {
 
             Divider().overlay(AppTheme.Border.subtleColor)
             footerButton(label: L10n.string("Settings"), systemImage: "gearshape") {
-                SettingsWindowController.shared.show(tab: .account)
+                SettingsCoordinator.shared.show(tab: .account)
                 dismiss()
             }
             if account.isSignedIn {

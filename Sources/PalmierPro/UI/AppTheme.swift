@@ -447,7 +447,6 @@ enum AppTheme {
         )
         static let projectTitlebarLeadingWidth: CGFloat = 132
         static let projectTitlebarTrailingWidth: CGFloat = 280
-        static let settingsDefault = NSSize(width: 1200, height: 800)
         static let settingsMin = NSSize(width: 860, height: 640)
     }
 

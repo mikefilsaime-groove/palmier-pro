@@ -15,6 +15,6 @@ struct ViewSkillsButton: View {
     }
 
     private func openSkills() {
-        SettingsWindowController.shared.show(tab: .skills)
+        SettingsCoordinator.shared.show(tab: .skills)
     }
 }
