@@ -5,5 +5,17 @@
         <link>https://github.com/mikefilsaime-groove/palmier-pro</link>
         <description>CreatorStudio Editor release feed</description>
         <language>en</language>
+        <item>
+            <title>Version 0.1.0</title>
+            <pubDate>Sat, 08 Aug 2026 22:59:00 -0400</pubDate>
+            <sparkle:version>81</sparkle:version>
+            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure
+                url="https://github.com/mikefilsaime-groove/palmier-pro/releases/download/creatorstudio-v0.1.0/CreatorStudioEditor.dmg"
+                length="27233233"
+                type="application/octet-stream"
+                sparkle:edSignature="UYLxM8/cjqS5dIu6bOgyK1w6hE3SWmF/JRqSgdK4nDkl7IxbKCouBrTCz/7dgJnRP57Cu95NKToPyEAPc6ImDw=="/>
+        </item>
     </channel>
 </rss>
