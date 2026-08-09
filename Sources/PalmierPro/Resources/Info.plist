@@ -34,7 +34,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.7.2</string>
+	<string>0.1.0</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -47,17 +47,17 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>80</string>
+	<string>81</string>
+	<key>ClickCampaignsAPIBaseURL</key>
+	<string>https://clickcampaigns.ai</string>
+	<key>CreatorStudioAPIBaseURL</key>
+	<string>https://creatorstudio.gg</string>
+	<key>CreatorStudioSampleProjectBaseURL</key>
+	<string>https://groovy-kiwi-408.convex.site</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
-	<key>CreatorStudioAPIBaseURL</key>
-	<string>https://creatorstudio.gg</string>
-	<key>ClickCampaignsAPIBaseURL</key>
-	<string>https://clickcampaigns.ai</string>
-	<key>CreatorStudioSampleProjectBaseURL</key>
-	<string>https://groovy-kiwi-408.convex.site</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
