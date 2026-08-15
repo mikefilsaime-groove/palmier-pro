@@ -10,7 +10,11 @@ enum ProjectError: LocalizedError {
     case invalidName(String)
     case openProjects([String])
     case projectsOpening([String])
+    case openProjectsForDuplication([String])
+    case projectsOpeningForDuplication([String])
     case deletionInProgress(URL)
+    case duplicationInProgress(URL)
+    case projectNotFound
 
     var errorDescription: String? {
         switch self {
@@ -22,8 +26,16 @@ enum ProjectError: LocalizedError {
             "Close \(names.formatted()) before deleting."
         case .projectsOpening(let names):
             "Wait for \(names.formatted()) to finish opening before deleting."
+        case .openProjectsForDuplication(let names):
+            "Close \(names.formatted()) before duplicating."
+        case .projectsOpeningForDuplication(let names):
+            "Wait for \(names.formatted()) to finish opening before duplicating."
         case .deletionInProgress(let url):
             "“\(url.deletingPathExtension().lastPathComponent)” is being moved to the Trash."
+        case .duplicationInProgress(let url):
+            "“\(url.deletingPathExtension().lastPathComponent)” is already being duplicated."
+        case .projectNotFound:
+            "The project is no longer in My Projects."
         }
     }
 }
@@ -35,6 +47,7 @@ final class AppState {
 
     private(set) var activeProject: VideoProject?
     private var projectPathsBeingDeleted: Set<String> = []
+    private var projectPathsBeingDuplicated: Set<String> = []
     private var projectOpenCounts: [String: Int] = [:]
 
     var openProjects: [VideoProject] {
@@ -186,7 +199,6 @@ final class AppState {
     /// Creates a new project in the storage folder; errors if the name is invalid or already taken.
     @discardableResult
     func createProject(named name: String) async throws -> VideoProject {
-        try await CreatorStudioSession.shared.require(.newProject)
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let base = trimmed.isEmpty ? Project.defaultProjectName : trimmed
         guard !base.contains("/"), !base.contains("\\"), base != ".", base != ".." else {
@@ -220,10 +232,6 @@ final class AppState {
     }
 
     func createProjectInteractively() {
-        guard CreatorStudioSession.shared.canUseProtectedFeatures else {
-            SettingsCoordinator.shared.show(tab: .account)
-            return
-        }
         Telemetry.beginOperation("save_panel", data: ["flow": "project_create"])
         let panel = NSSavePanel()
         panel.allowedContentTypes = [Self.projectContentType]
@@ -310,6 +318,33 @@ final class AppState {
         projectPathsBeingDeleted.formUnion(paths)
         defer { projectPathsBeingDeleted.subtract(paths) }
         return await ProjectRegistry.shared.delete(entries)
+    }
+
+    @discardableResult
+    func duplicateProject(withID id: UUID) async throws -> URL {
+        await ProjectRegistry.shared.waitUntilLoaded()
+        guard let entry = ProjectRegistry.shared.entries.first(where: { $0.id == id }) else {
+            throw ProjectError.projectNotFound
+        }
+        let source = entry.url.standardizedFileURL
+        let openPaths = Set(openProjects.compactMap { $0.fileURL?.standardizedFileURL.path })
+        guard !openPaths.contains(source.path) else {
+            throw ProjectError.openProjectsForDuplication([entry.name])
+        }
+        guard projectOpenCounts[source.path] == nil else {
+            throw ProjectError.projectsOpeningForDuplication([entry.name])
+        }
+        guard !projectPathsBeingDeleted.contains(source.path) else {
+            throw ProjectError.deletionInProgress(source)
+        }
+        guard projectPathsBeingDuplicated.insert(source.path).inserted else {
+            throw ProjectError.duplicationInProgress(source)
+        }
+        defer { projectPathsBeingDuplicated.remove(source.path) }
+
+        let duplicate = try await ProjectPackageDuplicator.duplicate(source)
+        ProjectRegistry.shared.register(duplicate)
+        return duplicate
     }
 
     private func showExistingProject(at url: URL, register: Bool, options: ProjectOpenOptions) -> VideoProject? {

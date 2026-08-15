@@ -3,7 +3,6 @@ import Foundation
 struct CreatorStudioConfiguration: Sendable {
     let creatorStudioAPI: URL
     let clickCampaignsAPI: URL
-    let leaseAudience = "creatorstudio-editor"
 
     static func load(
         environment: [String: String] = ProcessInfo.processInfo.environment,

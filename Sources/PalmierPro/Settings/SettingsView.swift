@@ -5,6 +5,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case general
     case appearance
     case models
+    case videoSelectorGuide
     case agent
     case skills
     case storage
@@ -17,6 +18,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: return L10n.key("General")
         case .appearance: return L10n.key("Appearance")
         case .models: return L10n.key("Models")
+        case .videoSelectorGuide: return L10n.key("Video Selector Guide")
         case .agent: return "Agent"
         case .skills: return L10n.key("Skills")
         case .storage: return L10n.key("Storage")
@@ -29,6 +31,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .general: return "gearshape"
         case .appearance: return "sun.max"
         case .models: return "square.stack.3d.up"
+        case .videoSelectorGuide: return "sparkles.tv"
         case .agent: return "paperplane"
         case .skills: return "book.closed"
         case .storage: return "internaldrive"
@@ -37,7 +40,6 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
-    @Bindable private var account = AccountService.shared
     @State private var selectedTab: SettingsTab
     let onDismiss: () -> Void
 
@@ -46,11 +48,7 @@ struct SettingsView: View {
         self.onDismiss = onDismiss
     }
 
-    private var visibleTabs: [SettingsTab] {
-        SettingsTab.allCases.filter { tab in
-            !(tab == .account && account.isMisconfigured)
-        }
-    }
+    private var visibleTabs: [SettingsTab] { SettingsTab.allCases }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -163,6 +161,8 @@ private struct SettingsDetail: View {
                                 AppearancePane()
                             case .models:
                                 ModelsPane()
+                            case .videoSelectorGuide:
+                                VideoSelectorGuidePane()
                             case .agent:
                                 AgentPane()
                             case .skills:

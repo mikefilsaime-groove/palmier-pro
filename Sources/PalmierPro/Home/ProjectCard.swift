@@ -4,9 +4,11 @@ struct ProjectCard: View {
     let entry: ProjectEntry
     let isSelecting: Bool
     let isSelected: Bool
+    let isDuplicating: Bool
     let onOpen: (URL) -> Void
     let onRemove: (URL) -> Void
     let onSelect: () -> Void
+    let onDuplicate: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovered = false
@@ -90,6 +92,10 @@ struct ProjectCard: View {
                         : AppTheme.MediaOverlay.tertiaryColor)
                     .padding(AppTheme.Spacing.smMd)
                     .allowsHitTesting(false)
+            } else if isDuplicating {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(AppTheme.Spacing.smMd)
             } else if isHovered {
                 Button(action: onDelete) {
                     Image(systemName: "trash.fill")
@@ -121,6 +127,8 @@ struct ProjectCard: View {
         .contextMenu {
             if entry.isAccessible {
                 Button(L10n.string("Open")) { onOpen(entry.url) }
+                Button(L10n.string("Duplicate Project"), action: onDuplicate)
+                    .disabled(isDuplicating)
                 Button(L10n.string("Reveal in Finder")) {
                     NSWorkspace.shared.selectFile(entry.url.path, inFileViewerRootedAtPath: entry.url.deletingLastPathComponent().path)
                 }

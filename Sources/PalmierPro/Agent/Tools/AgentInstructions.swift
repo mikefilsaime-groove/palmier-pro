@@ -32,8 +32,8 @@ enum AgentInstructions {
         - Call get_media before referencing any asset; filter with ids (poll a generation), \
           folder, or pending=true.
         - Call list_models before any generate_* or upscale call. If get_timeline says \
-          canGenerate=false, generation will fail — ask the user to connect the authenticated \
-          ClickCampaigns GodMode MCP first.
+          canGenerate=false, generation will fail — ask the user to configure the required \
+          provider or use an available Codex model.
         - Never describe an asset from its filename — inspect_media first. On long media work \
           coarse to fine: overview=true storyboard, then transcript segments, then zoom with \
           startSeconds/endSeconds.

@@ -53,20 +53,11 @@ struct HomeView: View {
 }
 
 private struct WelcomeTitle: View {
-    @Bindable private var account = AccountService.shared
-
     var body: some View {
-        Text(title)
+        Text(L10n.string("Welcome to CreatorStudio Editor"))
             .font(.system(size: AppTheme.FontSize.title2, weight: .light))
             .tracking(AppTheme.Tracking.tight)
             .foregroundStyle(AppTheme.Text.primaryColor)
-    }
-
-    private var title: String {
-        if let first = account.account?.user.firstName {
-            return L10n.string("Welcome to CreatorStudio Editor, \(first)")
-        }
-        return L10n.string("Welcome to CreatorStudio Editor")
     }
 }
 
@@ -76,16 +67,16 @@ private struct HomeSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if account.isSignedIn {
+            if account.isConnected {
                 IdentityStrip()
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                if !account.isSignedIn && !account.isMisconfigured {
+                if !account.isConnected && !account.isMisconfigured {
                     SidebarRowButton(
-                        label: L10n.string("Connect GodMode MCP"),
+                        label: L10n.string("Connect ScalePlus Pro Max Superpowers plugin"),
                         systemImage: "person.crop.circle",
-                        action: { account.connectGodModeMCP() }
+                        action: { account.connectCreatorStudio() }
                     )
                 }
                 SidebarRowButton(

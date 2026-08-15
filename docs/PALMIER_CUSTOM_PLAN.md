@@ -10,20 +10,18 @@ Palmier's repository supplies the open-source editor and desktop orchestration. 
 
 ## Access policy
 
-- Active ClickCampaigns `god-mode` unlocks the complete application.
-- Inactive or revoked GodMode permits opening, editing, saving, and exporting existing projects.
-- Inactive or revoked GodMode blocks new projects, generation, in-app AI, and mutating MCP tools.
-- A successful entitlement response supplies a signed Ed25519 seven-day offline lease.
-- The lease is accepted only for transport or server outages. An explicit inactive response, invalid token, invalid signature, wrong subject, wrong audience, invalid issue time, or expired lease fails closed.
-- Hosted CreatorStudio generation independently rechecks ClickCampaigns entitlement and may cache a positive result for no more than 60 seconds.
+- The complete desktop editor is available to anyone who downloads it.
+- No account or entitlement gates project creation, editing, saving, duplication, export, the in-app Agent, generation UI, or mutating MCP tools.
+- Provider-specific work still requires that provider's credential or connection: Codex for GPT Image 2, ElevenLabs for audio, and CreatorStudio account sync for Fal.ai catalogs and jobs.
+- Hosted services remain free to reject invalid, revoked, or unauthorized service requests, but those responses never lock the local editor.
 
-## Authentication
+## Optional one-time CreatorStudio account sync
 
-CreatorStudio Editor requires the authenticated ClickCampaigns GodMode MCP. The desktop creates a ten-minute pairing session and displays a human-readable code. The user explicitly asks the MCP to authorize that code; ClickCampaigns rechecks active GodMode and allows a one-time exchange for a dedicated `creatorstudio-editor` token. The desktop never reads, copies, or embeds the MCP's own credential.
+CreatorStudio Editor can optionally connect to CreatorStudio for Fal.ai. The desktop creates a ten-minute pairing session and displays a human-readable code. The user explicitly authorizes it with either the ScalePlus ProMax SuperPowers Plugin or ClickCampaigns GodMode MCP, then performs a one-time exchange for a dedicated `creatorstudio-editor` token. The desktop never reads, copies, or embeds the MCP's own credential.
 
-The app-specific token, signed lease, subject, and lease verification key are stored in macOS Keychain. Disconnecting clears local credentials and attempts server-side token revocation. Desktop authentication does not open Keycloak, inspect browser cookies, or treat a dashboard page load as authentication.
+The app-specific token is stored in macOS Keychain and restored after relaunch. CreatorStudio Editor does not perform recurring GodMode entitlement checks, foreground lease refreshes, or seven-day lease validation. It refreshes the Fal.ai connection status when needed, but a transient service failure does not erase the saved token or ask the user to pair again. Disconnecting explicitly clears the local token and attempts server-side revocation.
 
-CreatorStudio forwards the app-specific bearer token to ClickCampaigns for authoritative entitlement validation and caches only a positive result for no more than 60 seconds. CreatorStudio signs each CreatorStudio-to-Imager request with a 90-second Ed25519 service JWT. Imager verifies its signature, issuer, audience, role, key ID, and expiry. The private key exists only in CreatorStudio and the public key only in Imager; no shared service secret, MCP token, or administrative Fal key is embedded in the desktop app.
+CreatorStudio signs each CreatorStudio-to-Imager request with a 90-second Ed25519 service JWT. Imager verifies its signature, issuer, audience, role, key ID, and expiry. The private key exists only in CreatorStudio and the public key only in Imager; no shared service secret, MCP token, or administrative Fal key is embedded in the desktop app.
 
 ## Generation architecture
 
@@ -33,11 +31,12 @@ Provider precedence is strict:
 
 1. For images, prefer Codex GPT Image 2 when Codex is installed and the preference is enabled. This uses the user's signed-in Codex subscription allowance.
 2. A selected Codex job never falls back to Fal.ai after a failure, interruption, or usage limit.
-3. For selected Fal.ai models, when CreatorStudio reports an encrypted user Fal key, submit a durable CreatorStudio job.
-4. When CreatorStudio explicitly reports no key, use the user's local Keychain Fal key if present.
-5. When neither Fal.ai key exists, show an actionable connection prompt.
-6. When CreatorStudio is unavailable or reports an invalid connection, report that failure and do not silently switch credentials.
-7. ElevenLabs operations always use the user's local Keychain ElevenLabs credential.
+3. Fal.ai catalogs and compilers require the optional one-time CreatorStudio connection.
+4. For selected Fal.ai models, when CreatorStudio reports an encrypted user Fal key, submit a durable CreatorStudio job.
+5. When CreatorStudio explicitly reports no key, use the user's local Keychain Fal key if present.
+6. When neither Fal.ai key exists, show an actionable credential prompt.
+7. When CreatorStudio is unavailable or reports an invalid connection, report that failure and do not silently switch credentials.
+8. ElevenLabs operations always use the user's local Keychain ElevenLabs credential.
 
 Generation metadata persists provider ID, credential source, model ID, catalog version, endpoint IDs, external job ID, provider request IDs, a credential-free request snapshot, and resumability. Credentials, bearer tokens, ciphertext, and expiring signed URLs are never written into `.palmier` packages.
 
@@ -69,8 +68,6 @@ ClickCampaigns:
 
 - `POST /api/godmode/v1/pairing-sessions`
 - `POST /api/godmode/v1/pairing-sessions/{id}/exchange`
-- `GET /api/godmode/v1/entitlement`
-- `GET /api/godmode/v1/lease-keys`
 - `POST /api/godmode/v1/logout`
 - MCP tool `authorize_creatorstudio_editor`
 
@@ -97,7 +94,7 @@ Catalog entries use stable model IDs, media kind, operation, capabilities, setti
 
 | Capability | Primary desktop locations |
 | --- | --- |
-| MCP pairing and GodMode lease | `Sources/PalmierPro/Account/CreatorStudioSession.swift` |
+| Optional one-time CreatorStudio pairing | `Sources/PalmierPro/Account/CreatorStudioSession.swift` |
 | Service configuration | `Sources/PalmierPro/Account/CreatorStudioConfiguration.swift` |
 | Keychain generation credentials | `Sources/PalmierPro/Generation/GenerationCredentialStore.swift` |
 | Provider selection and normalized jobs | `Sources/PalmierPro/Generation/GenerationCoordinator.swift` |
@@ -139,7 +136,7 @@ Use merge commits when bringing the published mirror into `fal-integration`. Kee
 
 Upstream Palmier signing, telemetry, Clerk, Convex, and Sparkle credentials are not used.
 
-The source and signed DMG remain public under GPLv3. Entitlement is authoritative on hosted services; a redistributed local GPL build cannot be made tamper-proof.
+The source and DMG remain public under GPLv3. The local editor has no entitlement gate; hosted provider services authorize their own account-scoped requests.
 
 ## Rollout and verification
 
@@ -153,12 +150,12 @@ swift test
 swift build --traits BundledSpeech
 ```
 
-Manual verification covers sign-in/out, inactive safe mode, seven-day outage behavior, local Fal fallback, ElevenLabs credential lifecycle, selector exchange and confirmation, generation placement and undo, cancellation, relaunch recovery, export, MCP discovery/receipts, and opening existing `.palmier` projects.
+Manual verification covers unrestricted editor access, one-time CreatorStudio pairing and relaunch restore, explicit disconnect, local Fal fallback, ElevenLabs credential lifecycle, selector exchange and confirmation, generation placement and undo, cancellation, relaunch recovery, project duplication, export, MCP discovery/receipts, and opening existing `.palmier` projects.
 
 The home screen retains Palmier's original hosted sample-project source and `.palmier` compatibility. CreatorStudio Editor removes Palmier's first-run profile questionnaire; the editor tour and release notes remain independent flows.
 
 ## Production configuration
 
 - Imager, CreatorStudio, and ClickCampaigns are deployed behind `CREATORSTUDIO_EDITOR_API_ENABLED` with server-only Ed25519 keys.
-- CreatorStudio-to-Imager service authentication, ClickCampaigns lease signing, and the CreatorStudio Editor Sparkle update key are configured independently.
+- CreatorStudio-to-Imager service authentication and the CreatorStudio Editor Sparkle update key are configured independently.
 - The initial public release is an unsigned preview. A CreatorStudio Apple Developer ID identity and notarization profile remain optional future inputs for a standard double-click installation experience.

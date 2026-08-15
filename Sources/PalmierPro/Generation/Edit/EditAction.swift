@@ -13,13 +13,6 @@ enum EditAction {
 
     static let editMaxDurationSeconds: Double = 10.0
 
-    var requiresPaidPlan: Bool {
-        switch self {
-        case .upscale, .edit, .lipSync, .reframe: true
-        case .generateMusic, .generateSFX, .rerun, .createVideo, .enhanceDraft: false
-        }
-    }
-
     func group(for mediaType: ClipType) -> AIEditActionGroup {
         switch self {
         case .generateMusic, .generateSFX:

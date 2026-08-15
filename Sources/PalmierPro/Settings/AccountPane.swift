@@ -11,12 +11,10 @@ struct AccountPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xxl) {
             accountSection
-            if session.isSignedIn {
-                codexImageSection
-                creatorStudioSection
-                localFalSection
-                elevenLabsSection
-            }
+            codexImageSection
+            if session.isSignedIn { creatorStudioSection }
+            localFalSection
+            elevenLabsSection
             if let error = session.lastError ?? credentials.lastError {
                 Text(verbatim: error)
                     .font(.system(size: AppTheme.FontSize.sm))
@@ -28,36 +26,23 @@ struct AccountPane: View {
         }
     }
 
-    private var codexImageSection: some View {
-        SettingsSection(title: L10n.string("Image generation")) {
-            SettingsToggleRow(
-                title: L10n.string("Prefer Codex GPT Image 2"),
-                subtitle: L10n.string(
-                    "Uses the signed-in Codex subscription allowance by default. Fal.ai image models remain available in the model picker."
-                ),
-                isOn: $preferCodexImages
-            )
-        }
-    }
-
     private var accountSection: some View {
-        SettingsSection(title: L10n.string("ClickCampaigns GodMode")) {
+        SettingsSection(title: L10n.string("CreatorStudio account sync")) {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
                 HStack(spacing: AppTheme.Spacing.md) {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
                         Text(verbatim: accountTitle)
                             .font(.system(size: AppTheme.FontSize.md, weight: AppTheme.FontWeight.medium))
                             .foregroundStyle(AppTheme.Text.primaryColor)
-                        Text(verbatim: accessDetail)
+                        Text(verbatim: accountDetail)
                             .font(.system(size: AppTheme.FontSize.sm))
-                            .foregroundStyle(accessColor)
+                            .foregroundStyle(session.isSignedIn ? AppTheme.Status.successColor : AppTheme.Text.tertiaryColor)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: AppTheme.Spacing.lg)
                     if session.isSignedIn {
-                        Button(L10n.string("Refresh")) {
+                        Button(L10n.string("Refresh Fal.ai status")) {
                             Task {
-                                await session.refreshEntitlement()
                                 await session.refreshCreatorStudioConnection()
                                 await ModelCatalog.shared.reload()
                             }
@@ -69,12 +54,12 @@ struct AccountPane: View {
                         Button(
                             session.isSigningIn
                                 ? L10n.string("Starting connection…")
-                                : L10n.string("Connect GodMode MCP")
+                                : L10n.string("Connect once")
                         ) {
                             Task { await session.signIn() }
                         }
                         .buttonStyle(.capsule(.prominent, size: .regular))
-                        .disabled(session.isSigningIn || !session.isConfigured)
+                        .disabled(session.isSigningIn || session.isRestoringConnection || !session.isConfigured)
                     }
                 }
 
@@ -110,6 +95,18 @@ struct AccountPane: View {
         }
     }
 
+    private var codexImageSection: some View {
+        SettingsSection(title: L10n.string("Image generation")) {
+            SettingsToggleRow(
+                title: L10n.string("Prefer Codex GPT Image 2"),
+                subtitle: L10n.string(
+                    "Uses the signed-in Codex subscription allowance by default. Fal.ai image models remain available in the model picker."
+                ),
+                isOn: $preferCodexImages
+            )
+        }
+    }
+
     private var creatorStudioSection: some View {
         SettingsSection(title: L10n.string("CreatorStudio Fal.ai")) {
             credentialStatusRow(
@@ -120,24 +117,21 @@ struct AccountPane: View {
         }
     }
 
-    @ViewBuilder
     private var localFalSection: some View {
-        if case .missing = session.falConnection {
-            SettingsSection(title: L10n.string("Local Fal.ai fallback")) {
-                apiKeyRow(
-                    placeholder: credentials.hasFalKey ? "••••••••••••" : L10n.string("Fal.ai API key"),
-                    value: $falKey,
-                    isStored: credentials.hasFalKey,
-                    save: {
-                        guard await credentials.save(falKey, kind: .fal) else { return }
-                        falKey = ""
-                    },
-                    delete: { await credentials.delete(.fal) }
-                )
-                Text(L10n.string("Used only when CreatorStudio confirms that no Fal.ai key is on file."))
-                    .font(.system(size: AppTheme.FontSize.xs))
-                    .foregroundStyle(AppTheme.Text.tertiaryColor)
-            }
+        SettingsSection(title: L10n.string("Fal.ai API key on this Mac")) {
+            apiKeyRow(
+                placeholder: credentials.hasFalKey ? "••••••••••••" : L10n.string("Fal.ai API key"),
+                value: $falKey,
+                isStored: credentials.hasFalKey,
+                save: {
+                    guard await credentials.save(falKey, kind: .fal) else { return }
+                    falKey = ""
+                },
+                delete: { await credentials.delete(.fal) }
+            )
+            Text(L10n.string("Used directly when your connected CreatorStudio account has no Fal.ai key on file."))
+                .font(.system(size: AppTheme.FontSize.xs))
+                .foregroundStyle(AppTheme.Text.tertiaryColor)
         }
     }
 
@@ -202,22 +196,14 @@ struct AccountPane: View {
     }
 
     private var accountTitle: String {
-        session.displayName ?? session.email ?? (session.isSignedIn ? L10n.string("Signed in") : L10n.string("Signed out"))
+        if session.isRestoringConnection { return L10n.string("Restoring saved connection…") }
+        return session.isSignedIn ? L10n.string("Connected") : L10n.string("Not connected")
     }
 
-    private var accessDetail: String {
-        switch session.access {
-        case .checking: L10n.string("Checking GodMode…")
-        case .active(let expiry): L10n.string("GodMode active · offline through \(expiry.formatted(date: .abbreviated, time: .shortened))")
-        case .offlineLease(let expiry): L10n.string("Offline GodMode lease active through \(expiry.formatted(date: .abbreviated, time: .shortened))")
-        case .inactive: L10n.string("GodMode inactive · existing projects remain editable and exportable")
-        case .signedOut: L10n.string("Connect the authenticated ClickCampaigns GodMode MCP")
-        case .unavailable(let message): message
-        }
-    }
-
-    private var accessColor: Color {
-        session.canUseProtectedFeatures ? AppTheme.Status.successColor : AppTheme.Text.tertiaryColor
+    private var accountDetail: String {
+        session.isSignedIn
+            ? L10n.string("Saved in this Mac’s Keychain. CreatorStudio Editor will not ask you to connect again unless you disconnect.")
+            : L10n.string("Optional. Connect once to sync the Fal.ai key stored in your CreatorStudio account. The editor works without this connection.")
     }
 
     private var creatorStudioConfigured: Bool {
@@ -237,8 +223,8 @@ struct AccountPane: View {
     private var creatorStudioDetail: String {
         switch session.falConnection {
         case .configured(let masked): masked ?? L10n.string("CreatorStudio will run Fal.ai jobs with your encrypted key.")
-        case .missing: L10n.string("Add a local fallback below or connect Fal.ai in CreatorStudio.")
-        case .unknown: L10n.string("Refresh the account connection.")
+        case .missing: L10n.string("Add a local Fal.ai key below or connect Fal.ai in CreatorStudio.")
+        case .unknown: L10n.string("Refresh the Fal.ai connection status.")
         case .unavailable(let message): message
         }
     }

@@ -65,8 +65,7 @@ struct AIEditMenu: View {
     }
 
     private var aiAllowed: Bool {
-        let account = AccountService.shared
-        return account.isSignedIn && !account.isMisconfigured
+        true
     }
 
     private var availableActions: [EditAction] {
@@ -91,15 +90,7 @@ struct AIEditMenu: View {
         action: EditAction,
         perform: @escaping () -> Void
     ) -> some View {
-        if action.requiresPaidPlan && !AccountService.shared.isPaid {
-            Button {
-                SettingsCoordinator.shared.show(tab: .account)
-            } label: {
-                Label(L10n.string("\(title) (Paid)"), systemImage: "lock.fill")
-            }
-        } else {
-            Button(title, action: perform)
-        }
+        Button(title, action: perform)
     }
 
     private func runUpscale() {

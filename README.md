@@ -1,6 +1,6 @@
 # CreatorStudio Editor
 
-CreatorStudio Editor is a native macOS video editor built from the GPLv3 Palmier Pro codebase. It preserves Palmier's local timeline, editing, export, Agent, and MCP capabilities while replacing Palmier-hosted accounts, credits, and generation with Scale Plus GodMode and bring-your-own-key media providers.
+CreatorStudio Editor is a native macOS video editor built from the GPLv3 Palmier Pro codebase. It preserves Palmier's local timeline, editing, export, Agent, and MCP capabilities while replacing Palmier-hosted accounts, credits, and generation with bring-your-own-key media providers.
 
 The app requires macOS 26 (Tahoe) on Apple Silicon.
 
@@ -14,17 +14,24 @@ CreatorStudio Editor does not currently support Intel Macs or Windows.
 
 ## Media generation
 
-- Video and image jobs prefer the authenticated user's encrypted Fal.ai key stored by CreatorStudio.
-- A Fal.ai key stored in this Mac's Keychain is available only when CreatorStudio confirms that the user has no key on file.
+- CreatorStudio account sync is a one-time, optional connection used only to load the Fal.ai catalog and access the user's encrypted CreatorStudio Fal.ai key.
+- The connection token is stored in this Mac's Keychain and restored after relaunch. The app does not repeatedly check GodMode entitlement or ask the user to pair again.
+- A Fal.ai key stored locally in Keychain is used when the connected CreatorStudio account has no Fal.ai key on file.
 - Text-to-speech, sound effects, music, and video-to-music use the user's ElevenLabs key stored in Keychain.
-- The video model picker includes an authenticated **Help me choose** flow backed by CreatorStudio's live catalog.
+- The video model picker includes **Help me choose**, and Settings links to the [CreatorStudio Video Selector Guide](https://creatorstudio.gg/video-selector).
 - Local transcription remains available. Palmier's hosted generation, cloud transcription, account, credit, telemetry, feedback, and update services are not used.
 
-## Access
+## Access and optional CreatorStudio connection
 
-An active ClickCampaigns GodMode entitlement unlocks the complete application. If GodMode is inactive, users can still open, edit, save, and export existing projects, but cannot create projects, generate media, use the in-app AI agent, or invoke mutating MCP tools.
+Anyone who downloads CreatorStudio Editor can use the complete editor. No account, subscription, entitlement, or authentication is required to create, open, edit, save, duplicate, export, use the Agent, or invoke MCP tools.
 
-Authentication requires the user's already-authenticated ClickCampaigns GodMode MCP. CreatorStudio Editor displays a short-lived pairing code; the MCP approves it and ClickCampaigns issues an app-specific token stored in Keychain. The MCP's own credential is never read or copied. A successful entitlement carries a signed seven-day offline lease for service outages; an explicit inactive or revoked response always fails closed.
+Fal.ai models use an optional one-time CreatorStudio account connection. CreatorStudio Editor displays a short-lived pairing code, and the user authorizes it with either the ScalePlus ProMax SuperPowers Plugin or ClickCampaigns GodMode MCP. ClickCampaigns issues an app-specific token that is stored in Keychain until the user explicitly disconnects. The MCP credential itself is never read or copied, and no seven-day lease or recurring desktop entitlement check is used.
+
+Codex GPT Image 2, direct OpenAI or Anthropic Agent keys, and ElevenLabs work independently of that CreatorStudio connection.
+
+## Updates
+
+The packaged app checks the CreatorStudio GitHub Sparkle feed when it launches and again while active when the previous check is more than one hour old. When a release is available, an **Update** button appears in the Home sidebar and project title bar. **CreatorStudio Editor → Check for Updates…** and **Settings → General → Software Updates** can also start a check manually.
 
 ## MCP server
 

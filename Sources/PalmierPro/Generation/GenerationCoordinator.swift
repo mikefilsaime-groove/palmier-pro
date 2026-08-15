@@ -10,7 +10,6 @@ actor GenerationCoordinator {
 
     func selectProvider(modelID: String) async throws -> GenerationProviderSelection {
         if modelID == CodexImageGeneration.modelID {
-            try await CreatorStudioSession.shared.require(.generation, refreshBeforeLocalGeneration: true)
             let available: Bool
             do {
                 available = try await CodexAppServer.image.supportsImageGeneration()
@@ -21,18 +20,21 @@ actor GenerationCoordinator {
         }
 
         if modelID.hasPrefix("elevenlabs/") {
-            try await CreatorStudioSession.shared.require(.generation, refreshBeforeLocalGeneration: true)
             guard await GenerationCredentialStore.credential(.elevenLabs) != nil else {
                 throw GenerationCoordinatorError.elevenLabsKeyMissing
             }
             return GenerationProviderSelection(provider: .elevenLabs, credentialSource: .elevenLabsKeychain)
         }
 
-        try await CreatorStudioSession.shared.require(.generation, refreshBeforeLocalGeneration: true)
-        await CreatorStudioSession.shared.refreshCreatorStudioConnection()
+        let hasLocalFalKey = await GenerationCredentialStore.credential(.fal) != nil
+        guard await CreatorStudioSession.shared.isSignedIn else {
+            throw GenerationCoordinatorError.creatorStudioUnavailable(
+                "Connect CreatorStudio account sync once to load Fal.ai models."
+            )
+        }
         return try Self.providerSelection(
             falConnection: await CreatorStudioSession.shared.falConnection,
-            hasLocalFalKey: await GenerationCredentialStore.credential(.fal) != nil
+            hasLocalFalKey: hasLocalFalKey
         )
     }
 

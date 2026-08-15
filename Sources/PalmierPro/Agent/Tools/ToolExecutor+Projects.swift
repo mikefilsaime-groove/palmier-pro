@@ -15,9 +15,6 @@ extension ToolExecutor {
                 throw ToolError("manage_project requires an 'action'.")
             }
             let actionArgs = args.filter { $0.key != "action" }
-            if action == "create", !CreatorStudioSession.shared.canUseProtectedFeatures {
-                throw ToolError("Active ClickCampaigns GodMode is required to create a project.")
-            }
             switch action {
             case "list":   return try listProjects(actionArgs)
             case "open":   return try await openProject(actionArgs)

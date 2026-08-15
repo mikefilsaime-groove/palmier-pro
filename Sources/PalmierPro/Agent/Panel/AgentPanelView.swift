@@ -352,12 +352,12 @@ struct AgentPanelView: View {
         guard let error else { return nil }
         switch error {
         case .unauthenticated:
-            return ErrorCTA(title: L10n.string("Connect GodMode MCP")) {
-                SettingsCoordinator.shared.show(tab: .account)
+            return ErrorCTA(title: L10n.string("Open Agent Settings")) {
+                SettingsCoordinator.shared.show(tab: .agent)
             }
         case .insufficientCredits:
-            return ErrorCTA(title: L10n.string("View plans")) {
-                SettingsCoordinator.shared.show(tab: .account)
+            return ErrorCTA(title: L10n.string("Open Agent Settings")) {
+                SettingsCoordinator.shared.show(tab: .agent)
             }
         case .unavailable:
             return ErrorCTA(title: L10n.string("Open Settings")) {
@@ -371,7 +371,7 @@ struct AgentPanelView: View {
     private func errorMessage(_ error: AgentServiceError) -> String {
         switch error {
         case .unauthenticated:
-            L10n.string("Connect ClickCampaigns GodMode MCP to use AI chat.")
+            L10n.string("Connect Codex or add an OpenAI or Anthropic API key to use AI chat.")
         case .insufficientCredits(let message), .upstream(let message):
             message
         case .unavailable(let model):
@@ -416,27 +416,15 @@ struct AgentPanelView: View {
     @ViewBuilder
     private var missingKeyState: some View {
         VStack(spacing: AppTheme.Spacing.mdLg) {
-            if CreatorStudioSession.shared.canUseProtectedFeatures {
-                Text(L10n.string("Connect Codex or add your own OpenAI or Anthropic API key."))
-                    .font(.system(size: AppTheme.FontSize.sm))
-                    .foregroundStyle(AppTheme.Text.mutedColor)
-                    .multilineTextAlignment(.center)
+            Text(L10n.string("Connect Codex or add your own OpenAI or Anthropic API key."))
+                .font(.system(size: AppTheme.FontSize.sm))
+                .foregroundStyle(AppTheme.Text.mutedColor)
+                .multilineTextAlignment(.center)
 
-                Button(action: { SettingsCoordinator.shared.show(tab: .agent) }) {
-                    Text(service.model.provider.chatPresentation.missingKeyLinkTitle)
-                }
-                .buttonStyle(.capsule(.prominent, size: .regular))
-            } else {
-                Text(L10n.string("Active ClickCampaigns GodMode is required for in-app chat."))
-                    .font(.system(size: AppTheme.FontSize.sm))
-                    .foregroundStyle(AppTheme.Text.mutedColor)
-                    .multilineTextAlignment(.center)
-
-                Button(L10n.string("Connect GodMode MCP")) {
-                    SettingsCoordinator.shared.show(tab: .account)
-                }
-                .buttonStyle(.capsule(.prominent, size: .regular))
+            Button(action: { SettingsCoordinator.shared.show(tab: .agent) }) {
+                Text(service.model.provider.chatPresentation.missingKeyLinkTitle)
             }
+            .buttonStyle(.capsule(.prominent, size: .regular))
 
             Text(L10n.string("Codex can power in-app chat and edit through CreatorStudio Editor MCP."))
                 .font(.system(size: AppTheme.FontSize.xs))

@@ -60,7 +60,7 @@ final class ModelCatalog {
             }
         }
         let codexInstalled = await CodexAppServer.isInstalled()
-        guard CreatorStudioSession.shared.canUseProtectedFeatures else {
+        guard CreatorStudioSession.shared.isSignedIn else {
             apply(Self.addingCodexImage(to: entries, installed: codexInstalled))
             return
         }

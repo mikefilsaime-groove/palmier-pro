@@ -368,10 +368,6 @@ final class AgentService {
     }
 
     func send(text: String, mentions: [AgentMention]) {
-        guard CreatorStudioSession.shared.canUseProtectedFeatures else {
-            streamError = .upstream("Active ClickCampaigns GodMode is required to use the in-app Agent.")
-            return
-        }
         guard canStream else {
             streamError = .unavailable(model)
             return

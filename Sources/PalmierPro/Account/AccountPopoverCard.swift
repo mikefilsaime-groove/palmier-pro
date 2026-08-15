@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AccountPopoverCard: View {
     @Bindable private var account = AccountService.shared
-    @Bindable private var session = CreatorStudioSession.shared
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -24,11 +23,11 @@ struct AccountPopoverCard: View {
                 Spacer(minLength: 0)
             }
 
-            if account.isSignedIn {
+            if account.isConnected {
                 Divider().overlay(AppTheme.Border.subtleColor)
-                Label(accessLabel, systemImage: session.canUseProtectedFeatures ? "checkmark.circle.fill" : "lock.circle")
+                Label(L10n.string("CreatorStudio account sync connected"), systemImage: "checkmark.circle.fill")
                     .font(.system(size: AppTheme.FontSize.sm))
-                    .foregroundStyle(session.canUseProtectedFeatures ? AppTheme.Status.successColor : AppTheme.Text.tertiaryColor)
+                    .foregroundStyle(AppTheme.Status.successColor)
             }
 
             Divider().overlay(AppTheme.Border.subtleColor)
@@ -36,14 +35,14 @@ struct AccountPopoverCard: View {
                 SettingsCoordinator.shared.show(tab: .account)
                 dismiss()
             }
-            if account.isSignedIn {
-                footerButton(label: L10n.string("Sign out"), systemImage: "rectangle.portrait.and.arrow.right") {
-                    Task { await account.signOut() }
+            if account.isConnected {
+                footerButton(label: L10n.string("Disconnect CreatorStudio"), systemImage: "rectangle.portrait.and.arrow.right") {
+                    Task { await account.disconnectCreatorStudio() }
                     dismiss()
                 }
             } else {
-                footerButton(label: L10n.string("Connect GodMode MCP"), systemImage: "person.crop.circle") {
-                    account.connectGodModeMCP()
+                footerButton(label: L10n.string("Connect CreatorStudio"), systemImage: "person.crop.circle") {
+                    account.connectCreatorStudio()
                     dismiss()
                 }
             }
@@ -51,12 +50,6 @@ struct AccountPopoverCard: View {
         .padding(AppTheme.Spacing.md)
         .frame(width: AppTheme.Settings.popoverWidth)
         .focusEffectDisabled()
-    }
-
-    private var accessLabel: String {
-        session.canUseProtectedFeatures
-            ? L10n.string("GodMode active")
-            : L10n.string("GodMode inactive · safe mode")
     }
 
     private func footerButton(label: String, systemImage: String, action: @escaping () -> Void) -> some View {

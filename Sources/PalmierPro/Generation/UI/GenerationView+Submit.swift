@@ -39,12 +39,8 @@ extension GenerationView {
     }
 
     var submitButton: some View {
-        Button {
-            if aiAllowed { submitGeneration() }
-            else if account.isSignedIn { SettingsCoordinator.shared.show(tab: .account) }
-            else if !account.isMisconfigured { account.connectGodModeMCP() }
-        } label: {
-            Image(systemName: aiAllowed ? "arrow.up" : "person.crop.circle")
+        Button(action: submitGeneration) {
+            Image(systemName: "arrow.up")
                 .font(.system(size: AppTheme.FontSize.sm, weight: .bold))
                 .frame(width: AppTheme.IconSize.sm, height: AppTheme.IconSize.sm)
         }
@@ -52,17 +48,10 @@ extension GenerationView {
         .buttonBorderShape(.circle)
         .controlSize(.regular)
         .tint(AppTheme.Accent.primary)
-        .accessibilityLabel(aiAllowed
-            ? (selectedType == .upscale ? L10n.string("Upscale") : L10n.string("Generate"))
-            : (account.isSignedIn ? L10n.string("GodMode required") : L10n.string("Connect GodMode MCP")))
-        .disabled(aiAllowed ? !canSubmit : account.isMisconfigured)
-        .opacity((aiAllowed ? canSubmit : !account.isMisconfigured) ? AppTheme.Opacity.opaque : AppTheme.Opacity.strong)
-        .help(aiAllowed
-            ? (selectedType == .upscale ? L10n.string("Upscale source media") : String())
-            : (account.isMisconfigured
-                ? L10n.string("AI is unavailable")
-                : account.isSignedIn ? L10n.string("Activate GodMode to generate")
-                : L10n.string("Connect GodMode MCP to generate")))
+        .accessibilityLabel(selectedType == .upscale ? L10n.string("Upscale") : L10n.string("Generate"))
+        .disabled(!canSubmit)
+        .opacity(canSubmit ? AppTheme.Opacity.opaque : AppTheme.Opacity.strong)
+        .help(selectedType == .upscale ? L10n.string("Upscale source media") : String())
     }
 
     // MARK: - Actions
@@ -184,10 +173,6 @@ extension GenerationView {
     }
 
     private func submitGeneration() {
-        if currentModelLocked {
-            SettingsCoordinator.shared.show(tab: .account)
-            return
-        }
         let audioDuration: Int = {
             guard selectedType == .audio else { return 0 }
             if audioUsesSource { return effectiveAudioSourceSeconds }

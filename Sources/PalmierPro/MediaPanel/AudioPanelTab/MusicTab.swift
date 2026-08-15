@@ -2,7 +2,6 @@ import SwiftUI
 
 struct MusicTab: View {
     @Environment(EditorViewModel.self) var editor
-    @Bindable private var account = AccountService.shared
 
     @State private var selectedModelId: String?
     @State private var mode: MusicGenerationSubmission.Mode = .videoToMusic
@@ -56,20 +55,6 @@ struct MusicTab: View {
         prompt.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var costDuration: Int {
-        isTextMode ? Int(textDuration.rounded()) : Int(spanSeconds.rounded())
-    }
-
-    private var estimatedCost: Int? {
-        guard let model, costDuration > 0 else { return nil }
-        return CostEstimator.audioCost(
-            model: model,
-            prompt: trimmedPrompt,
-            durationSeconds: costDuration,
-            input: isTextMode ? .text : .video
-        )
-    }
-
     private var validationNote: String? {
         guard let model else { return L10n.string("No music models available.") }
         if isTextMode {
@@ -80,7 +65,7 @@ struct MusicTab: View {
                 lyrics: nil,
                 styleInstructions: nil,
                 instrumental: false,
-                durationSeconds: costDuration
+                durationSeconds: Int(textDuration.rounded())
             )
             if let issue = model.validate(params: params) { return issue }
         } else {
@@ -88,13 +73,6 @@ struct MusicTab: View {
                 return L10n.string("Add video to the timeline, then mark a range to score only part of it.")
             }
             if let issue = model.validate(spanSeconds: spanSeconds) { return issue }
-        }
-        if let cost = estimatedCost, cost > AccountService.shared.remainingCredits,
-           AccountService.shared.budgetCredits != nil {
-            return CostEstimator.localizedInsufficientCredits(
-                cost,
-                remaining: AccountService.shared.remainingCredits
-            )
         }
         return nil
     }
@@ -104,8 +82,7 @@ struct MusicTab: View {
     }
 
     private var generateLabel: String {
-        if let cost = estimatedCost, cost > 0 { return CostEstimator.localizedGenerateLabel(cost) }
-        return L10n.string("Generate")
+        L10n.string("Generate")
     }
 
     private var sourceSummary: String {
@@ -236,8 +213,7 @@ struct MusicTab: View {
                 }
                 .buttonStyle(.editorPrimary)
                 .focusable(false)
-                .disabled(!canGenerate || !account.aiAllowed)
-                .help(account.aiAllowed ? String() : L10n.string("Connect GodMode MCP to generate"))
+                .disabled(!canGenerate)
 
                 agentMenu
             }

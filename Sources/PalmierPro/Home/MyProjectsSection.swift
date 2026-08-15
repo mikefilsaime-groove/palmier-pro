@@ -16,8 +16,10 @@ struct MyProjectsSection: View {
     @State private var isSearchExpanded = false
     @State private var isSelecting = false
     @State private var selectedProjectIDs: Set<UUID> = []
+    @State private var duplicatingProjectIDs: Set<UUID> = []
     @State private var projectsPendingDeletion: [ProjectEntry] = []
     @State private var deletionMessage: String?
+    @State private var duplicationMessage: String?
     @State private var samples = SampleProjectService.defaultSummaries
     @State private var activeSampleDownload: SampleDownload?
     @FocusState private var isSearchFocused: Bool
@@ -96,6 +98,14 @@ struct MyProjectsSection: View {
         } message: {
             Text(verbatim: deletionMessage ?? String())
         }
+        .alert(L10n.string("Project Couldn’t Be Duplicated"), isPresented: Binding(
+            get: { duplicationMessage != nil },
+            set: { if !$0 { duplicationMessage = nil } }
+        )) {
+            Button(L10n.string("OK")) { duplicationMessage = nil }
+        } message: {
+            Text(verbatim: duplicationMessage ?? String())
+        }
         .onChange(of: ProjectRegistry.shared.entries.map(\.id)) { _, ids in
             selectedProjectIDs.formIntersection(ids)
             if ids.isEmpty { endSelection() }
@@ -171,9 +181,11 @@ struct MyProjectsSection: View {
                             entry: entry,
                             isSelecting: isSelecting,
                             isSelected: selectedProjectIDs.contains(entry.id),
+                            isDuplicating: duplicatingProjectIDs.contains(entry.id),
                             onOpen: { AppState.shared.openProject(at: $0) },
                             onRemove: { ProjectRegistry.shared.remove($0) },
                             onSelect: { toggleSelection(entry.id) },
+                            onDuplicate: { duplicate(entry) },
                             onDelete: { requestDeletion([entry]) }
                         )
                     }
@@ -251,6 +263,18 @@ struct MyProjectsSection: View {
     private func prepareDeletion() {
         let selected = ProjectRegistry.shared.entries.filter { selectedProjectIDs.contains($0.id) }
         requestDeletion(selected)
+    }
+
+    private func duplicate(_ entry: ProjectEntry) {
+        guard duplicatingProjectIDs.insert(entry.id).inserted else { return }
+        Task {
+            defer { duplicatingProjectIDs.remove(entry.id) }
+            do {
+                try await AppState.shared.duplicateProject(withID: entry.id)
+            } catch {
+                duplicationMessage = error.localizedDescription
+            }
+        }
     }
 
     private func requestDeletion(_ entries: [ProjectEntry]) {

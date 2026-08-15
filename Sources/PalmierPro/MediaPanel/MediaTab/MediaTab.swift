@@ -293,14 +293,11 @@ struct MediaTab: View {
     }
 
     private var actionsRow: some View {
-        let showGenerate = !AccountService.shared.isMisconfigured
-        return HStack(spacing: AppTheme.Spacing.xs) {
+        HStack(spacing: AppTheme.Spacing.xs) {
             toolbarButton(title: L10n.string("Import"), systemImage: "plus", action: importMedia)
                 .tourAnchor(.importButton)
-            if showGenerate {
-                toolbarButton(title: L10n.string("Generate"), systemImage: "sparkles", filled: true, accentStyle: AnyShapeStyle(AppTheme.aiGradient), action: toggleGenerationPanel)
-                    .tourAnchor(.generateButton)
-            }
+            toolbarButton(title: L10n.string("Generate"), systemImage: "sparkles", filled: true, accentStyle: AnyShapeStyle(AppTheme.aiGradient), action: toggleGenerationPanel)
+                .tourAnchor(.generateButton)
 
             overflowMenu
 
@@ -627,7 +624,7 @@ struct MediaTab: View {
     }
 
     private var overflowMenu: some View {
-        let canOrganize = !AccountService.shared.isMisconfigured && !editor.mediaAssets.isEmpty
+        let canOrganize = !editor.mediaAssets.isEmpty
         return toolbarMenuIcon(systemName: "ellipsis") {
             Button(action: createNewFolderInCurrent) {
                 Label(L10n.string("New Folder"), systemImage: "folder.badge.plus")

@@ -14,7 +14,6 @@ extension EditorViewModel {
         guard seconds <= Self.maxTransitionSeconds else {
             return (nil, "Transitions are limited to \(Int(Self.maxTransitionSeconds)) seconds. This gap is \(String(format: "%.1f", seconds)) seconds.")
         }
-        guard aiEditAllowed else { return (nil, "Connect ClickCampaigns GodMode MCP to generate.") }
         let model = VideoModelConfig.firstAndLastFrame
         return (model, model == nil ? "No video model supports first and last frames." : nil)
     }

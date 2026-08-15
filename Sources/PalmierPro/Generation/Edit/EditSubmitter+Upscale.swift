@@ -31,8 +31,7 @@ extension EditSubmitter {
         onComplete: (@MainActor (MediaAsset) -> Void)? = nil,
         onFailure: (@MainActor () -> Void)? = nil
     ) -> String? {
-        guard AccountService.shared.isSignedIn,
-              asset.sourceWidth != nil, asset.sourceHeight != nil,
+        guard asset.sourceWidth != nil, asset.sourceHeight != nil,
               model.supports(source: asset),
               asset.type != .video || asset.sourceFPS != nil else { return nil }
 

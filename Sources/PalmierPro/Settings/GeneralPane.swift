@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GeneralPane: View {
     @Bindable private var localization = AppLocalization.shared
+    @Bindable private var updater = Updater.shared
 
     private var languageOptions: [AppLanguage] {
         [.system] + localization.availableLanguages
@@ -55,6 +56,26 @@ struct GeneralPane: View {
 
             SettingsSection(title: L10n.string("Notifications")) {
                 NotificationsPane()
+            }
+
+            SettingsSection(title: L10n.string("Software Updates")) {
+                HStack(alignment: .center, spacing: AppTheme.Spacing.lg) {
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
+                        Text(L10n.string("CreatorStudio Editor checks GitHub for updates automatically."))
+                            .font(.system(size: AppTheme.FontSize.md))
+                            .foregroundStyle(AppTheme.Text.primaryColor)
+                        Text(L10n.string("When an update is available, use the Update button in the Home sidebar or project title bar to download and install it."))
+                            .font(.system(size: AppTheme.FontSize.sm))
+                            .foregroundStyle(AppTheme.Text.tertiaryColor)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: AppTheme.Spacing.lg)
+                    Button(L10n.string("Check for Updates…")) {
+                        updater.checkForUpdates(nil)
+                    }
+                    .buttonStyle(.capsule(.secondary))
+                    .fixedSize()
+                }
             }
 
             SettingsSection(title: L10n.string("Privacy & Diagnostics")) {

@@ -4,7 +4,6 @@ struct GenerationView: View {
     let maxPanelHeight: Double
 
     @Environment(EditorViewModel.self) var editor
-    @Bindable var account = AccountService.shared
     @State var prompt = ""
     @State var selectedType: GenerationType = .video
     @State var selectedVideoModelIndex = 0
@@ -294,10 +293,6 @@ struct GenerationView: View {
         }
         .onChange(of: editor.pendingPanelSeed?.asset.id) { _, _ in consumePendingPanelSeed() }
         .onChange(of: ModelPreferences.shared.disabledIds) { _, _ in
-            guard !isPopulatingPanel else { return }
-            normalizeModelSelection()
-        }
-        .onChange(of: account.isPaid) { _, _ in
             guard !isPopulatingPanel else { return }
             normalizeModelSelection()
         }

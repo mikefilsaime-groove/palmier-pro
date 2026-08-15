@@ -234,7 +234,6 @@ final class TourController {
     }
 
     private static func firstAIEditVisualClipId(in editor: EditorViewModel) -> String? {
-        guard !AccountService.shared.isMisconfigured else { return nil }
         for track in editor.timeline.tracks {
             for clip in track.clips where clip.mediaType.isVisual && clip.mediaType != .text {
                 if editor.mediaAssetsById[clip.mediaRef] != nil {

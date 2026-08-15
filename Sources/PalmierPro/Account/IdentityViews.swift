@@ -18,7 +18,6 @@ struct UserAvatar: View {
         ZStack {
             background
             foreground
-            profileImage
         }
         .frame(width: diameter, height: diameter)
         .clipShape(Circle())
@@ -26,7 +25,7 @@ struct UserAvatar: View {
 
     @ViewBuilder
     private var background: some View {
-        if account.isSignedIn {
+        if account.isConnected {
             Circle().fill(AppTheme.Accent.primary.opacity(AppTheme.Opacity.medium))
         } else if signedOutStyle == .filledCircle {
             Circle().fill(AppTheme.Interaction.fill(AppTheme.Opacity.soft))
@@ -35,7 +34,7 @@ struct UserAvatar: View {
 
     @ViewBuilder
     private var foreground: some View {
-        if account.isSignedIn {
+        if account.isConnected {
             Text(account.displayInitial)
                 .font(.system(size: fontSize, weight: .semibold))
                 .foregroundStyle(AppTheme.Text.primaryColor)
@@ -53,18 +52,6 @@ struct UserAvatar: View {
         }
     }
 
-    @ViewBuilder
-    private var profileImage: some View {
-        if let urlString = account.account?.user.image,
-           let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFill()
-                }
-            }
-            .id(urlString)
-        }
-    }
 }
 
 // MARK: - UserAvatarButton
@@ -84,7 +71,7 @@ struct UserAvatarButton: View {
             .hoverHighlight()
         }
         .buttonStyle(.plain)
-        .help(account.isSignedIn ? L10n.string("Account") : L10n.string("Connect GodMode MCP"))
+        .help(account.isConnected ? L10n.string("CreatorStudio connection") : L10n.string("Connect CreatorStudio"))
         .popover(isPresented: $isPopoverPresented, arrowEdge: .bottom) {
             AccountPopoverCard()
         }

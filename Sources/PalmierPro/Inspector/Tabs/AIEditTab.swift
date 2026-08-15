@@ -6,7 +6,6 @@ struct AIEditTab: View {
     let clipId: String?
     let usesOwnScrollView: Bool
     @Environment(EditorViewModel.self) private var editor
-    @Bindable private var account = AccountService.shared
     @State private var replaceClipSource: Bool = false
     @State private var useTrimmedClip: Bool = true
     @State private var placeAudioOnTimeline: Bool = true
@@ -260,10 +259,8 @@ struct AIEditTab: View {
             for: asset,
             effectiveDurationOverride: effectiveDurationForAvailability
         )
-        let paidBlocked = action.requiresPaidPlan && !account.isPaid
-        let isEnabled = availability.isAvailable && !paidBlocked && aiDisabledReason == nil
-        let disabledReason = aiDisabledReason
-            ?? (paidBlocked ? L10n.string("Requires a paid plan") : availability.reason)
+        let isEnabled = availability.isAvailable && aiDisabledReason == nil
+        let disabledReason = aiDisabledReason ?? availability.reason
 
         switch action {
         case .createVideo:
@@ -318,10 +315,8 @@ struct AIEditTab: View {
             for: asset,
             effectiveDurationOverride: effectiveDurationForAvailability
         )
-        let paidBlocked = kind.model?.paidOnly == true && !account.isPaid
-        let isEnabled = availability.isAvailable && !paidBlocked && aiDisabledReason == nil
-        let disabledReason = aiDisabledReason
-            ?? (paidBlocked ? L10n.string("Requires a paid plan") : availability.reason)
+        let isEnabled = availability.isAvailable && aiDisabledReason == nil
+        let disabledReason = aiDisabledReason ?? availability.reason
 
         return actionTileSurface(
             description: L10n.string(key: kind.description),
@@ -515,8 +510,6 @@ struct AIEditTab: View {
     private var shouldReplace: Bool { replaceClipSource && clipId != nil }
 
     private var aiDisabledReason: String? {
-        if account.isMisconfigured { return L10n.string("AI is unavailable") }
-        if !account.isSignedIn { return L10n.string("Connect GodMode MCP to use AI") }
         return nil
     }
 

@@ -94,20 +94,6 @@ final class ToolExecutor {
         }
         activateMCPSessionIfNeeded(source: origin.source, toolName: tool.rawValue)
 
-        if !CreatorStudioSession.shared.canUseProtectedFeatures,
-           !Self.allowedWithoutGodMode(tool) {
-            let result = ToolResult.error("Active ClickCampaigns GodMode is required for mutating MCP and Agent tools.")
-            captureToolAnalytics(
-                toolName: tool.rawValue,
-                origin: origin,
-                projectId: editor?.projectId,
-                result: result,
-                started: started,
-                failureReason: "godmode_required"
-            )
-            return result
-        }
-
         // project tools act on AppState before editor is available
         switch tool {
         case .manageProject:
@@ -232,17 +218,6 @@ final class ToolExecutor {
         switch tool {
         case .getTimeline, .inspectTimeline, .getMedia, .inspectMedia, .searchMedia,
              .getMulticam, .getTranscript, .detectBeats, .inspectColor, .listModels:
-            true
-        default:
-            false
-        }
-    }
-
-    private static func allowedWithoutGodMode(_ tool: ToolName) -> Bool {
-        switch tool {
-        case .manageProject, .getTimeline, .inspectTimeline, .exportProject, .manageExports,
-             .getMedia, .inspectMedia, .searchMedia, .getMulticam, .getTranscript,
-             .detectBeats, .inspectColor, .listModels, .readSkill:
             true
         default:
             false
