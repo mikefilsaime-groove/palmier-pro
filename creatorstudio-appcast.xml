@@ -65,5 +65,17 @@
                 type="application/octet-stream"
                 sparkle:edSignature="NsZfQ2gB6+3z2fS10Ofohk0NVvnOhIY8ZNJm/tnL+BamBFQwGANrHZWl4r7rab4NxCYdmOsNLk/AHrWuoNmSCA=="/>
         </item>
+        <item>
+            <title>Version 0.1.5</title>
+            <pubDate>Fri, 14 Aug 2026 21:10:22 -0400</pubDate>
+            <sparkle:version>86</sparkle:version>
+            <sparkle:shortVersionString>0.1.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure
+                url="https://github.com/mikefilsaime-groove/palmier-pro/releases/download/creatorstudio-v0.1.5/CreatorStudioEditor.dmg"
+                length="27201107"
+                type="application/octet-stream"
+                sparkle:edSignature="TMt5wB8+0MQ/hktdVJbZF3poDgMNIYXxa6sHTTr2DTTNzbxv2TgLT879cVF+PNDwC96d0tU3S9RbpbbMelL8Bw=="/>
+        </item>
     </channel>
 </rss>
