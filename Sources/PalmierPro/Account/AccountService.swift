@@ -20,7 +20,7 @@ final class AccountService {
     func disconnectCreatorStudio() async { await session.signOut() }
 
     var displayPrimaryText: String {
-        isConnected ? L10n.string("CreatorStudio connected") : L10n.string("CreatorStudio not connected")
+        isConnected ? L10n.string("Connected") : L10n.string("Connect")
     }
 
     var displaySecondaryText: String? {

@@ -239,9 +239,7 @@
 "CreatorStudio Editor loaded this clip's source file but couldn't prepare it for playback. The file may be corrupt or in an unsupported format." = "CreatorStudio Editor loaded this clip's source file but couldn't prepare it for playback. The file may be corrupt or in an unsupported format.";
 "CreatorStudio Fal.ai" = "CreatorStudio Fal.ai";
 "CreatorStudio account sync connected" = "CreatorStudio account sync connected";
-"CreatorStudio connected" = "CreatorStudio connected";
 "CreatorStudio connection" = "CreatorStudio connection";
-"CreatorStudio not connected" = "CreatorStudio not connected";
 "CreatorStudio will run Fal.ai jobs with your encrypted key." = "CreatorStudio will run Fal.ai jobs with your encrypted key.";
 "Crop" = "Crop";
 "Crop applies to one clip at a time" = "Crop applies to one clip at a time";
