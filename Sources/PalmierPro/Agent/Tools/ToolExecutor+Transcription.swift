@@ -352,7 +352,7 @@ extension ToolExecutor {
             isVideoByURL[asset.url] = isVideo
         }
 
-        let transcripts = await transcriptsByURL(
+        let transcripts = try await transcriptsByURL(
             for: fragments,
             context: session.context,
             isVideoByURL: isVideoByURL
@@ -437,7 +437,7 @@ extension ToolExecutor {
         for fragments: [TranscriptFragment],
         context: TranscriptionToolContext,
         isVideoByURL: [URL: Bool]
-    ) async -> (results: [URL: TranscriptionResult], skipped: [[String: Any]]) {
+    ) async throws -> (results: [URL: TranscriptionResult], skipped: [[String: Any]]) {
         let outcomes = await withTaskGroup(of: (URL, Result<TranscriptionResult, Error>).self) { group in
             for url in Set(fragments.map(\.url)) {
                 group.addTask {
@@ -457,6 +457,7 @@ extension ToolExecutor {
             for await outcome in group { collected.append(outcome) }
             return collected
         }
+        try Task.checkCancellation()
 
         var results: [URL: TranscriptionResult] = [:]
         var skipped: [[String: Any]] = []

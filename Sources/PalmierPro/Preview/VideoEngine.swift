@@ -224,8 +224,8 @@ final class VideoEngine {
             rebuild()
         case .mediaAsset(let id, _, let type):
             guard let asset = editor.mediaAssets.first(where: { $0.id == id }) else { return }
-            if type == .image {
-                replacePlayerItem(nil, reason: "imagePreview")
+            if type == .image || type == .subtitle {
+                replacePlayerItem(nil, reason: "nonPlayablePreview")
             } else {
                 previewAsset(asset)
                 seek(to: editor.sourcePlayheadFrame, mode: .exact)
@@ -419,7 +419,7 @@ final class VideoEngine {
         if editor.isPlaying { player.play() }
     }
 
-    func refreshVisuals() {
+    func refreshVisuals(seekMode: PreviewSeekMode = .exact) {
         visualRefreshGeneration &+= 1
         guard let editor, editor.activePreviewTab == .timeline,
               let currentItem = player.currentItem,
@@ -444,9 +444,7 @@ final class VideoEngine {
         case .meterPlayback:
             scrubAudioEngine.meterPlayback(at: player.currentTime())
         case .seekToActiveFrame:
-            guard let time = playerTime(forPreviewFrame: editor.activeFrame) else { return }
-            cancelInteractiveSeek()
-            performSeek(time: time, tolerance: .zero)
+            seek(to: editor.activeFrame, mode: seekMode)
         case .none:
             break
         }

@@ -86,6 +86,36 @@ enum CaptionSpecBuilder {
         )
     }
 
+    /// Specs for imported subtitle cues. Honors the file's timing: overlaps are resolved but gaps are never closed.
+    @concurrent
+    static func build(
+        cues: [SubtitleCue], fps: Int, canvasWidth: Int, canvasHeight: Int,
+        style: TextStyle, center: CGPoint
+    ) async throws -> [EditorViewModel.TextClipSpec] {
+        let groupId = UUID().uuidString
+        var specs: [EditorViewModel.TextClipSpec] = []
+        for cue in cues {
+            try Task.checkCancellation()
+            let startFrame = Int((cue.startSeconds * Double(fps)).rounded())
+            let endFrame = Int((cue.endSeconds * Double(fps)).rounded())
+            specs.append(EditorViewModel.TextClipSpec(
+                trackIndex: 0,
+                startFrame: startFrame,
+                durationFrames: max(1, endFrame - startFrame),
+                content: cue.text,
+                style: style,
+                transform: transform(
+                    for: cue.text, style: style, center: center,
+                    canvasWidth: canvasWidth, canvasHeight: canvasHeight
+                ),
+                captionGroupId: groupId
+            ))
+        }
+        // Zero-gap settings also make the trailing timeline-end hold a no-op.
+        let honorFileTiming = CaptionGapSettings(maximumGapSeconds: 0) ?? .default
+        return adjustedCaptionTiming(in: specs, settings: honorFileTiming, fps: fps, timelineEndFrame: 0)
+    }
+
     private struct TimedCaption {
         var spec: EditorViewModel.TextClipSpec
         let originalDurationFrames: Int
@@ -126,8 +156,7 @@ enum CaptionSpecBuilder {
                ) {
                 captions[previousIndex].spec = resized(
                     captions[previousIndex].spec,
-                    durationFrames: duration,
-                    extendWordCycle: true
+                    durationFrames: duration
                 )
             }
         }
@@ -142,8 +171,7 @@ enum CaptionSpecBuilder {
                 if holdFrames > 0, !duration.overflow {
                     captions[lastIndex].spec = resized(
                         captions[lastIndex].spec,
-                        durationFrames: duration.partialValue,
-                        extendWordCycle: true
+                        durationFrames: duration.partialValue
                     )
                 }
             }
@@ -213,8 +241,7 @@ enum CaptionSpecBuilder {
     private static func resized(
         _ spec: EditorViewModel.TextClipSpec,
         durationFrames: Int,
-        wordOffsetFrames: Int = 0,
-        extendWordCycle: Bool = false
+        wordOffsetFrames: Int = 0
     ) -> EditorViewModel.TextClipSpec {
         var resized = spec
         resized.durationFrames = durationFrames
@@ -228,11 +255,6 @@ enum CaptionSpecBuilder {
             return end > start
                 ? WordTiming(text: word.text, startFrame: start, endFrame: end)
                 : nil
-        }
-        if extendWordCycle,
-           resized.animation?.preset == .wordCycle,
-           let lastIndex = words.indices.last {
-            words[lastIndex].endFrame = durationFrames
         }
         resized.words = words.isEmpty ? nil : words
         return resized

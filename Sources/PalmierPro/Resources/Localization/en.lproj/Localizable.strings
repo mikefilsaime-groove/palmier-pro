@@ -27,6 +27,7 @@
 "%lld media files are missing and will be skipped." = "%lld media files are missing and will be skipped.";
 "%lld sections" = "%lld sections";
 "%lld selected" = "%lld selected";
+"%lld subtitle files are ready in CreatorStudio Editor." = "%lld subtitle files are ready in CreatorStudio Editor.";
 "%lld text clips are ready in CreatorStudio Editor." = "%lld text clips are ready in CreatorStudio Editor.";
 "%lld videos are ready in CreatorStudio Editor." = "%lld videos are ready in CreatorStudio Editor.";
 "(image payload)" = "(image payload)";
@@ -51,7 +52,9 @@
 "AI agent" = "AI agent";
 "About CreatorStudio Editor" = "About CreatorStudio Editor";
 "Account" = "Account";
+"Action Safe" = "Action Safe";
 "Activity unavailable" = "Activity unavailable";
+"Add Marker (M)" = "Add Marker (M)";
 "Add Range to Chat" = "Add Range to Chat";
 "Add Text" = "Add Text";
 "Add a local Fal.ai key below or connect Fal.ai in CreatorStudio." = "Add a local Fal.ai key below or connect Fal.ai in CreatorStudio.";
@@ -60,7 +63,7 @@
 "Add captions" = "Add captions";
 "Add emoji" = "Add emoji";
 "Add generated audio to an audio track at this clip's start." = "Add generated audio to an audio track at this clip's start.";
-"Add keyframe at playhead" = "Add keyframe at playhead";
+"Add keyframe" = "Add keyframe";
 "Add models…" = "Add models…";
 "Add nonempty name and description fields to the skill frontmatter." = "Add nonempty name and description fields to the skill frontmatter.";
 "Add source media." = "Add source media.";
@@ -110,8 +113,11 @@
 "Blur" = "Blur";
 "Bold" = "Bold";
 "Both" = "Both";
+"Bottom" = "Bottom";
 "Browse Community Skills ↗" = "Browse Community Skills ↗";
 "Cache" = "Cache";
+"Can't add captions from \"%@\" — %@" = "Can't add captions from \"%@\" — %@";
+"Can't add captions — \"%@\" is offline." = "Can't add captions — \"%@\" is offline.";
 "Can't delete every timeline — the project needs at least one." = "Can't delete every timeline — the project needs at least one.";
 "Can't import \"%@\" — not a Lottie animation." = "Can't import \"%@\" — not a Lottie animation.";
 "Can't import \"%@\" — unsupported file type." = "Can't import \"%@\" — unsupported file type.";
@@ -125,6 +131,8 @@
 "Cancel key color sampling" = "Cancel key color sampling";
 "Canceled" = "Canceled";
 "Canceling" = "Canceling";
+"Canvas" = "Canvas";
+"Canvas Guides" = "Canvas Guides";
 "Canvas Zoom" = "Canvas Zoom";
 "Cap characters per caption, including spaces and punctuation. A single word may exceed the limit." = "Cap characters per caption, including spaces and punctuation. A single word may exceed the limit.";
 "Cap the words shown per caption. None fits each line to the box." = "Cap the words shown per caption. None fits each line to the box.";
@@ -144,6 +152,7 @@
 "Chat history" = "Chat history";
 "Chat with your agent! It can generate content, edit clips, organize your assets, and much more. Start by signing in, or bring your own Anthropic API key." = "Chat with your agent! It can generate content, edit clips, organize your assets, and much more. Start by signing in, or bring your own Anthropic API key.";
 "Check for Updates…" = "Check for Updates…";
+"Check the marker name, position, and duration." = "Check the marker name, position, and duration.";
 "Checking chat connections…" = "Checking chat connections…";
 "Choose a .cube LUT file" = "Choose a .cube LUT file";
 "Choose a crop aspect" = "Choose a crop aspect";
@@ -214,12 +223,16 @@
 "Copy Path" = "Copy Path";
 "Copy instructions" = "Copy instructions";
 "Copy message" = "Copy message";
+"Copy one clip of the same type and try again." = "Copy one clip of the same type and try again.";
 "Copy prompt" = "Copy prompt";
 "Corner Radius" = "Corner Radius";
 "Could not install the on-device speech model: %@" = "Could not install the on-device speech model: %@";
 "Could not parse transcription result." = "Could not parse transcription result.";
 "Couldn't Prepare Media" = "Couldn't Prepare Media";
+"Couldn't add marker." = "Couldn't add marker.";
 "Couldn't align %lld clips." = "Couldn't align %lld clips.";
+"Couldn't change marker." = "Couldn't change marker.";
+"Couldn't delete marker." = "Couldn't delete marker.";
 "Couldn't switch angle." = "Couldn't switch angle.";
 "Couldn’t move %@ to the Trash." = "Couldn’t move %@ to the Trash.";
 "Count" = "Count";
@@ -244,7 +257,6 @@
 "Crop" = "Crop";
 "Crop applies to one clip at a time" = "Crop applies to one clip at a time";
 "Curves" = "Curves";
-"Custom" = "Custom";
 "Custom Aspect Ratio" = "Custom Aspect Ratio";
 "Custom…" = "Custom…";
 "Cut" = "Cut";
@@ -266,6 +278,7 @@
 "Delete Skill" = "Delete Skill";
 "Delete Timeline" = "Delete Timeline";
 "Delete from history" = "Delete from history";
+"Delete keyframe" = "Delete keyframe";
 "Delete skill?" = "Delete skill?";
 "Delete “%@”" = "Delete “%@”";
 "Delete “%@”?" = "Delete “%@”?";
@@ -324,6 +337,7 @@
 "Edit doesn't support Lottie" = "Edit doesn't support Lottie";
 "Edit doesn't support audio" = "Edit doesn't support audio";
 "Edit doesn't support sequences" = "Edit doesn't support sequences";
+"Edit doesn't support subtitles" = "Edit doesn't support subtitles";
 "Edit doesn't support text" = "Edit doesn't support text";
 "Edit model not available" = "Edit model not available";
 "Edit supports up to %llds (this is %llds)" = "Edit supports up to %llds (this is %llds)";
@@ -380,8 +394,10 @@
 "Font Case" = "Font Case";
 "Footage" = "Footage";
 "For" = "For";
+"Format References" = "Format References";
 "Forward" = "Forward";
 "Frame Rate" = "Frame Rate";
+"Freeform" = "Freeform";
 "Full Frame" = "Full Frame";
 "Full Screen" = "Full Screen";
 "Full changelog" = "Full changelog";
@@ -417,6 +433,7 @@
 "Glow" = "Glow";
 "Go to next keyframe" = "Go to next keyframe";
 "Go to previous keyframe" = "Go to previous keyframe";
+"Grid" = "Grid";
 "Grid 2×2" = "Grid 2×2";
 "Grid 3×3" = "Grid 3×3";
 "Grid 4×4" = "Grid 4×4";
@@ -426,8 +443,9 @@
 "Help" = "Help";
 "Help me choose" = "Help me choose";
 "Help me choose a video model" = "Help me choose a video model";
+"Hide Guides" = "Hide Guides";
 "Hide Info" = "Hide Info";
-"Hide keyframe timeline" = "Hide keyframe timeline";
+"Hide clip keyframes" = "Hide clip keyframes";
 "Hide reasoning" = "Hide reasoning";
 "High" = "High";
 "Highlight" = "Highlight";
@@ -452,6 +470,7 @@
 "Indexes imported media for on-device search." = "Indexes imported media for on-device search.";
 "Indexing %lld/%lld" = "Indexing %lld/%lld";
 "Input" = "Input";
+"Insets" = "Insets";
 "Inspector" = "Inspector";
 "Inspector Panel" = "Inspector Panel";
 "Install" = "Install";
@@ -468,6 +487,7 @@
 "Integrations" = "Integrations";
 "Intensity" = "Intensity";
 "Invert Colors" = "Invert Colors";
+"Inverted" = "Inverted";
 "Italic" = "Italic";
 "Keep Current" = "Keep Current";
 "Keep Editing" = "Keep Editing";
@@ -482,6 +502,7 @@
 "Large" = "Large";
 "Last Frame" = "Last Frame";
 "Layout" = "Layout";
+"Left" = "Left";
 "Length of the generated music. It's placed at the playhead, or at the marked range start." = "Length of the generated music. It's placed at the playhead, or at the marked range start.";
 "Let Agent create captions for you. Choose a predefined task, or ask Agent in the chat." = "Let Agent create captions for you. Choose a predefined task, or ask Agent in the chat.";
 "Let Agent generate music for you. Choose a starter, or ask Agent in the chat." = "Let Agent generate music for you. Choose a starter, or ask Agent in the chat.";
@@ -523,6 +544,8 @@
 "Mark Range End" = "Mark Range End";
 "Mark Range Start" = "Mark Range Start";
 "Mark Silence" = "Mark Silence";
+"Marker %lld" = "Marker %lld";
+"Marker name" = "Marker name";
 "Master Audio Meter" = "Master Audio Meter";
 "Master — defines the group's clock and transcript." = "Master — defines the group's clock and transcript.";
 "Match Timeline" = "Match Timeline";
@@ -608,6 +631,7 @@
 "Not selected" = "Not selected";
 "Not sure which model fits your shot? The CreatorStudio Video Selector Guide helps compare current models by workflow, source media, duration, aspect ratio, resolution, audio support, and estimated provider cost." = "Not sure which model fits your shot? The CreatorStudio Video Selector Guide helps compare current models by workflow, source media, duration, aspect ratio, resolution, audio support, and estimated provider cost.";
 "Not synced — unusable as an angle." = "Not synced — unusable as an angle.";
+"Notes" = "Notes";
 "Notifications" = "Notifications";
 "OK" = "OK";
 "Off" = "Off";
@@ -639,6 +663,8 @@
 "Overline" = "Overline";
 "Padding" = "Padding";
 "Paste" = "Paste";
+"Paste Clip Settings" = "Paste Clip Settings";
+"Paste Settings" = "Paste Settings";
 "Path" = "Path";
 "Per line" = "Per line";
 "Per word" = "Per word";
@@ -648,13 +674,13 @@
 "PiP Top Right" = "PiP Top Right";
 "Pick a replacement for \"%@\"" = "Pick a replacement for \"%@\"";
 "Place on timeline" = "Place on timeline";
-"Placement" = "Placement";
 "Play / Pause" = "Play / Pause";
 "Playback" = "Playback";
 "Playback Speed" = "Playback Speed";
 "Playback previews, waveforms, filmstrip thumbnails, and transcripts. Safe to clear; files rebuild as needed." = "Playback previews, waveforms, filmstrip thumbnails, and transcripts. Safe to clear; files rebuild as needed.";
 "Pointer (V)" = "Pointer (V)";
 "Pop In" = "Pop In";
+"Portrait (9:16)" = "Portrait (9:16)";
 "Position" = "Position";
 "Prefer Codex GPT Image 2" = "Prefer Codex GPT Image 2";
 "Preparing" = "Preparing";
@@ -665,6 +691,7 @@
 "Project" = "Project";
 "Project Activity" = "Project Activity";
 "Project Couldn’t Be Duplicated" = "Project Couldn’t Be Duplicated";
+"Project Settings" = "Project Settings";
 "Project media stays on this Mac unless you explicitly submit media to CreatorStudio, Fal.ai, ElevenLabs, or another connected service." = "Project media stays on this Mac unless you explicitly submit media to CreatorStudio, Fal.ai, ElevenLabs, or another connected service.";
 "Projects Couldn’t Be Deleted" = "Projects Couldn’t Be Deleted";
 "Prompt" = "Prompt";
@@ -700,18 +727,19 @@
 "Remove %@" = "Remove %@";
 "Remove API key" = "Remove API key";
 "Remove Dead Air" = "Remove Dead Air";
+"Remove Marker" = "Remove Marker";
 "Remove background sound and keep speech" = "Remove background sound and keep speech";
 "Remove filler words" = "Remove filler words";
 "Remove from Queue" = "Remove from Queue";
 "Remove from Recents" = "Remove from Recents";
 "Remove horizontal flip" = "Remove horizontal flip";
-"Remove keyframe at playhead" = "Remove keyframe at playhead";
 "Remove model" = "Remove model";
 "Remove vertical flip" = "Remove vertical flip";
 "Removes background noise from this audio using an on-device model." = "Removes background noise from this audio using an on-device model.";
 "Removing background noise…" = "Removing background noise…";
 "Rename" = "Rename";
 "Rename Skill" = "Rename Skill";
+"Rename Track" = "Rename Track";
 "Rendering" = "Rendering";
 "Rendering…" = "Rendering…";
 "Replace clip source" = "Replace clip source";
@@ -728,6 +756,7 @@
 "Retry" = "Retry";
 "Retry Download" = "Retry Download";
 "Reveal in Finder" = "Reveal in Finder";
+"Right" = "Right";
 "Ripple Delete" = "Ripple Delete";
 "Ripple Delete Gap" = "Ripple Delete Gap";
 "Ripple Insert" = "Ripple Insert";
@@ -737,6 +766,7 @@
 "Roundness" = "Roundness";
 "Run this command once in Terminal." = "Run this command once in Terminal.";
 "Running on" = "Running on";
+"Safe Zones" = "Safe Zones";
 "Sample Key Color" = "Sample Key Color";
 "Sample key color" = "Sample key color";
 "Sat" = "Sat";
@@ -752,6 +782,7 @@
 "Saves a copy of this project with all media bundled inside, so it opens on any machine." = "Saves a copy of this project with all media bundled inside, so it opens on any machine.";
 "Scale" = "Scale";
 "ScalePlus Superpowers" = "ScalePlus Superpowers";
+"Scope (2.39:1)" = "Scope (2.39:1)";
 "Score my timeline" = "Score my timeline";
 "Screen" = "Screen";
 "Screenshot a frame" = "Screenshot a frame";
@@ -763,11 +794,13 @@
 "Search skills" = "Search skills";
 "Select" = "Select";
 "Select All" = "Select All";
+"Select All Clips on Track" = "Select All Clips on Track";
 "Select Forward on All Tracks" = "Select Forward on All Tracks";
 "Select Forward on Track" = "Select Forward on Track";
 "Select Range" = "Select Range";
-"Select a single clip to enable" = "Select a single clip to enable";
+"Select compatible clips and paste settings again." = "Select compatible clips and paste settings again.";
 "Select media files or folders to import" = "Select media files or folders to import";
+"Select the timeline to add a marker." = "Select the timeline to add a marker.";
 "Selected" = "Selected";
 "Selected Clips · %lld" = "Selected Clips · %lld";
 "Selection Tool" = "Selection Tool";
@@ -785,8 +818,8 @@
 "Sharpen" = "Sharpen";
 "Shortcuts" = "Shortcuts";
 "Show Info" = "Show Info";
+"Show clip keyframes" = "Show clip keyframes";
 "Show in Finder" = "Show in Finder";
-"Show keyframe timeline" = "Show keyframe timeline";
 "Show notifications" = "Show notifications";
 "Show reasoning" = "Show reasoning";
 "Side by Side" = "Side by Side";
@@ -819,6 +852,7 @@
 "Split at Playhead" = "Split at Playhead";
 "Split at Playhead (⌘K)" = "Split at Playhead (⌘K)";
 "Spoken" = "Spoken";
+"Square (1:1)" = "Square (1:1)";
 "Start creating" = "Start creating";
 "Start creating, or explore these to get the most out of CreatorStudio Editor." = "Start creating, or explore these to get the most out of CreatorStudio Editor.";
 "Starting connection…" = "Starting connection…";
@@ -836,6 +870,8 @@
 "Strikethrough" = "Strikethrough";
 "Style" = "Style";
 "Style instructions (optional). e.g., warm and slow, British accent." = "Style instructions (optional). e.g., warm and slow, British accent.";
+"Subtitle" = "Subtitle";
+"Subtitle file is unavailable." = "Subtitle file is unavailable.";
 "Swap Media" = "Swap Media";
 "Swap the clip's media when generation completes. Speed, volume, trim, and transform are preserved." = "Swap the clip's media when generation completes. Speed, volume, trim, and transform are preserved.";
 "Switch Angle" = "Switch Angle";
@@ -874,16 +910,21 @@
 "Three-Up" = "Three-Up";
 "Threshold" = "Threshold";
 "Thumbnail Size" = "Thumbnail Size";
+"Tilt" = "Tilt";
+"Time" = "Time";
 "Timecode" = "Timecode";
 "Timeline" = "Timeline";
 "Timeline Format" = "Timeline Format";
 "Timeline colors" = "Timeline colors";
 "Timelines" = "Timelines";
 "Tint" = "Tint";
+"Title Safe" = "Title Safe";
 "Toggle Agent Panel" = "Toggle Agent Panel";
 "Tone" = "Tone";
 "Tools" = "Tools";
+"Top" = "Top";
 "Top / Bottom" = "Top / Bottom";
+"Track Name" = "Track Name";
 "Tracking" = "Tracking";
 "Transcribing…" = "Transcribing…";
 "Transcription failed: %@" = "Transcription failed: %@";
@@ -921,6 +962,8 @@
 "Upscale only works on video or images" = "Upscale only works on video or images";
 "Upscale source media" = "Upscale source media";
 "Upscale…" = "Upscale…";
+"Use Freeform" = "Use Freeform";
+"Use Freeform to edit individual crop insets." = "Use Freeform to edit individual crop insets.";
 "Use an aspect ratio with two positive numbers, such as 3:2." = "Use an aspect ratio with two positive numbers, such as 3:2.";
 "Use as first frame or reference" = "Use as first frame or reference";
 "Use for non-English or mixed-language audio." = "Use for non-English or mixed-language audio.";
@@ -958,9 +1001,8 @@
 "White Balance" = "White Balance";
 "Whites" = "Whites";
 "Whole timeline · %@" = "Whole timeline · %@";
+"Wide (1.85:1)" = "Wide (1.85:1)";
 "Width" = "Width";
-"Word Cycle" = "Word Cycle";
-"Word Pop" = "Word Pop";
 "Word Reveal" = "Word Reveal";
 "Word Slide" = "Word Slide";
 "Working on %@" = "Working on %@";
@@ -971,6 +1013,7 @@
 "Your audio clip is ready." = "Your audio clip is ready.";
 "Your image is ready." = "Your image is ready.";
 "Your inspector for the selected clip — transform, adjust, audio, and more." = "Your inspector for the selected clip — transform, adjust, audio, and more.";
+"Your subtitle file is ready." = "Your subtitle file is ready.";
 "Your text clip is ready." = "Your text clip is ready.";
 "Your timeline: the top half is video, the bottom half is audio. Click a clip to inspect it — we've selected one for you." = "Your timeline: the top half is video, the bottom half is audio. Click a clip to inspect it — we've selected one for you.";
 "Your timeline: the top half is video, the bottom half is audio. This is where you edit." = "Your timeline: the top half is video, the bottom half is audio. This is where you edit.";

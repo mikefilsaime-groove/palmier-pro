@@ -1974,22 +1974,27 @@ struct ToolExecutorTextFolderTests {
         #expect((styleProperties["widthScale"]?["maximum"] as? NSNumber)?.doubleValue == 10)
         #expect((styleProperties["heightScale"]?["minimum"] as? NSNumber)?.doubleValue == 0.1)
         #expect((styleProperties["heightScale"]?["maximum"] as? NSNumber)?.doubleValue == 10)
+        #expect((styleProperties["blur"]?["maximum"] as? NSNumber)?.doubleValue == 100)
 
         let updateTransform = try #require(updateProperties["transform"]?["properties"] as? [String: [String: Any]])
-        #expect(Set(updateTransform.keys) == ["x", "y", "rotation"])
+        #expect(Set(updateTransform.keys) == ["x", "y", "rotation", "rotationX", "rotationY"])
 
         let addTool = try #require(ToolDefinitions.mcpServer.first { $0.name == .addTexts })
         let addProperties = try #require(addTool.inputSchema["properties"] as? [String: [String: Any]])
         let entries = try #require(addProperties["entries"])
         let items = try #require(entries["items"] as? [String: Any])
         let entryProperties = try #require(items["properties"] as? [String: [String: Any]])
+        let addStyle = try #require(entryProperties["style"]?["properties"] as? [String: [String: Any]])
+        #expect(addStyle["blur"] != nil)
         let addTransform = try #require(entryProperties["transform"]?["properties"] as? [String: [String: Any]])
-        #expect(Set(addTransform.keys) == ["x", "y", "rotation"])
+        #expect(Set(addTransform.keys) == ["x", "y", "rotation", "rotationX", "rotationY"])
 
         let captionsTool = try #require(ToolDefinitions.mcpServer.first { $0.name == .addCaptions })
         let captionsProperties = try #require(captionsTool.inputSchema["properties"] as? [String: [String: Any]])
+        let captionsStyle = try #require(captionsProperties["style"]?["properties"] as? [String: [String: Any]])
+        #expect(captionsStyle["blur"] != nil)
         let captionsTransform = try #require(captionsProperties["transform"]?["properties"] as? [String: [String: Any]])
-        #expect(Set(captionsTransform.keys) == ["x", "y", "rotation"])
+        #expect(Set(captionsTransform.keys) == ["x", "y", "rotation", "rotationX", "rotationY"])
     }
 
     @Test func addTextsCreatesNewTrackWhenIndexOmitted() async throws {
@@ -2566,6 +2571,33 @@ struct SetClipPropertiesTests {
         #expect(group?["textPreview"] as? String == "word0 … word2")
     }
 
+    @Test func updateTextSingleCaptionReceiptPreservesDeviantStyle() async {
+        var clips: [Clip] = []
+        for i in 0..<3 {
+            var clip = Fixtures.clip(id: "cap-\(i)", mediaRef: "text", mediaType: .text, start: i * 30, duration: 30)
+            clip.captionGroupId = "g1"
+            clip.textContent = "word\(i)"
+            clip.textStyle = TextStyle()
+            clips.append(clip)
+        }
+        let h = ToolHarness(timeline: Fixtures.timeline(tracks: [Fixtures.videoTrack(clips: clips)]))
+
+        let result = await h.runRaw("update_text", args: [
+            "clipIds": ["cap-1"],
+            "style": ["color": "#FF0000"],
+        ])
+
+        #expect(result.isError == false, "\(ToolHarness.textOf(result))")
+        let json = (try? JSONSerialization.jsonObject(with: Data(ToolHarness.textOf(result).utf8))) as? [String: Any]
+        let receipt = (json?["clips"] as? [[String: Any]])?.first
+        let color = (receipt?["textStyle"] as? [String: Any])?["color"] as? [String: Any]
+        #expect(receipt?["id"] as? String == "cap-1")
+        #expect(receipt?["captionGroupId"] as? String == "g1")
+        #expect(color?["r"] == nil)
+        #expect((color?["g"] as? NSNumber)?.doubleValue == 0)
+        #expect((color?["b"] as? NSNumber)?.doubleValue == 0)
+    }
+
     @Test func updateTextCaptionGroupAcceptsRichTextStyleFields() async {
         var a = Fixtures.clip(id: "cap-a", mediaRef: "text", mediaType: .text, start: 0, duration: 30)
         var b = Fixtures.clip(id: "cap-b", mediaRef: "text", mediaType: .text, start: 30, duration: 30)
@@ -2624,12 +2656,12 @@ struct SetClipPropertiesTests {
 
         let result = await h.runRaw("update_text", args: [
             "clipIds": ["title"],
-            "animation": "wordPop",
+            "animation": "wordSlide",
         ])
 
         #expect(result.isError == false, "\(ToolHarness.textOf(result))")
         let animation = h.editor.timeline.tracks[0].clips[0].textAnimation
-        #expect(animation?.preset == .wordPop)
+        #expect(animation?.preset == .wordSlide)
         #expect(animation?.perWordFrames == 12)
         #expect(animation?.highlight == highlight)
     }

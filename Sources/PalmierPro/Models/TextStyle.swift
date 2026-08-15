@@ -20,6 +20,7 @@ struct TextStyle: Codable, Sendable, Equatable, Hashable {
     var isOverlined: Bool = false
     var color: RGBA = RGBA()
     var alignment: Alignment = .center
+    var blur: Double = 0
     var shadow: Shadow = Shadow()
     var background: Background = Background()
     var border: Outline = Outline()
@@ -149,7 +150,7 @@ struct TextStyle: Codable, Sendable, Equatable, Hashable {
     private enum CodingKeys: String, CodingKey {
         case fontName, fontSize, fontScale, widthScale, heightScale, tracking, lineSpacing, fontCase
         case isBold, isItalic, isUnderlined, isStruckThrough, isOverlined
-        case color, alignment, shadow, background, border
+        case color, alignment, blur, shadow, background, border
     }
 }
 
@@ -181,6 +182,7 @@ extension TextStyle {
             isOverlined: (try? c.decode(Bool.self, forKey: .isOverlined)) ?? defaults.isOverlined,
             color: (try? c.decode(RGBA.self, forKey: .color)) ?? defaults.color,
             alignment: (try? c.decode(Alignment.self, forKey: .alignment)) ?? defaults.alignment,
+            blur: (try? c.decode(Double.self, forKey: .blur)) ?? defaults.blur,
             shadow: (try? c.decode(Shadow.self, forKey: .shadow)) ?? defaults.shadow,
             background: (try? c.decode(Background.self, forKey: .background)) ?? defaults.background,
             border: (try? c.decode(Outline.self, forKey: .border)) ?? defaults.border
@@ -208,6 +210,11 @@ extension TextStyle.RGBA {
 
     var swiftUIColor: Color {
         Color(.sRGB, red: r, green: g, blue: b, opacity: a)
+    }
+
+    var hexString: String {
+        let bytes = [r, g, b, a].map { Int((min(max($0, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X%02X", bytes[0], bytes[1], bytes[2], bytes[3])
     }
 
     init(_ color: Color) {

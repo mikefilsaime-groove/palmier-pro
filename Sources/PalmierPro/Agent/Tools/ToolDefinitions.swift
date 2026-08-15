@@ -10,6 +10,7 @@ enum ToolName: String, CaseIterable, Sendable {
     case inspectTimeline = "inspect_timeline"
     case createTimeline = "create_timeline"
     case setActiveTimeline = "set_active_timeline"
+    case manageMarkers = "manage_markers"
     case setProjectSettings = "set_project_settings"
     case exportProject = "export_project"
     case manageExports = "manage_exports"
@@ -33,6 +34,7 @@ enum ToolName: String, CaseIterable, Sendable {
     case rippleDeleteRanges = "ripple_delete_ranges"
     case swapClipMedia = "swap_clip_media"
     case setClipProperties = "set_clip_properties"
+    case copyClipSettings = "copy_clip_settings"
     case setKeyframes = "set_keyframes"
     case applyLayout = "apply_layout"
     case syncClips = "sync_clips"
@@ -69,6 +71,7 @@ enum ToolName: String, CaseIterable, Sendable {
 
     // Meta
     case readSkill = "read_skill"
+    case manageSkills = "manage_skills"
 }
 
 struct AgentTool: @unchecked Sendable {
@@ -81,7 +84,7 @@ enum ToolDefinitions {
     static let all: [AgentTool] = [
         AgentTool(
             name: .getTimeline,
-            description: "Always call at the start of a session. Returns project settings (fps, resolution, totalFrames, durationSeconds), tracks with a stable trackId, their current index (what every trackIndex parameter takes), type, and clips, plus canGenerate. Generation provider requirements are validated when a generation is submitted. Clip ids are accepted by clip mutation tools; trackId is accepted by manage_tracks.\n\nEvery clip occupies frames: [start, end) — timeline frames, end exclusive, duration = end − start. gaps on a track lists its empty [start, end) spans; no gaps key means contiguous. A video clip's linked audio partner is folded into it as audio: {id, track, …} carrying only what deviates (volumeDb, effects, differing trims); the partner is not repeated on its own track, which instead reports linkedClips (its folded count). Address the audio side by its nested id.\n\nFields equal to their defaults are omitted: mediaType 'video', sourceClipType = mediaType, speed 1, volumeDb 0, opacity 1, edgeRounding 0, edgeSoftness 0, trims/fades 0, identity transform/crop, default textStyle, track muted/hidden false. Text clips never report trims. Keyframe tracks that animate nothing are shown as what they are: identity tracks are dropped, constant ones appear as the static field (e.g. crop: {left: 0.31}). A graded clip carries `color` — its grade in apply_color's own vocabulary, pasteable to other clips via apply_color's color parameter. Other effects appear as effects: [{type, params}], the exact shape apply_effect accepts.\n\nCaption clips (sharing a captionGroupId) come back per track as captionGroups summaries: clipCount, frameRange, shared style, and a textPreview — individual caption clips and their ids are NOT listed. That summary is all you need to restyle (update_text with captionGroupId) or judge coverage; the spoken words live in get_transcript. Only when you must touch individual caption clips (retime one, delete one, fix one word's style), re-read with captionDetail:true — ideally windowed — to get [clipId, startFrame, endFrame, text] rows, capped at 200 per group. Caption clips whose properties deviate from the group always appear individually in clips.",
+            description: "Always call at the start of a session. Returns project settings (fps, resolution, totalFrames, durationSeconds), tracks with a stable trackId, their current index (what every trackIndex parameter takes), type, and clips, plus canGenerate. Generation provider requirements are validated when a generation is submitted. Clip ids are accepted by clip mutation tools; trackId is accepted by manage_tracks.\n\nEvery clip occupies frames: [start, end) — timeline frames, end exclusive, duration = end − start. gaps on a track lists its empty [start, end) spans; no gaps key means contiguous. A video clip's linked audio partner is folded into it as audio: {id, track, …} carrying only what deviates (volumeDb, effects, differing trims); the partner is not repeated on its own track, which instead reports linkedClips (its folded count). Address the audio side by its nested id.\n\nFields equal to their defaults are omitted: mediaType 'video', sourceClipType = mediaType, speed 1, volumeDb 0, opacity 1, edgeRounding 0, edgeSoftness 0, trims/fades 0, identity transform/crop, default textStyle, track muted/hidden false. Text clips never report trims. Keyframe tracks that animate nothing are shown as what they are: identity tracks are dropped, constant ones appear as the static field (e.g. crop: {left: 0.31}). A graded clip carries `color` — its grade in apply_color's own vocabulary, pasteable to other clips via apply_color's color parameter. Other effects appear as effects: [{type, params}], the exact shape apply_effect accepts.\n\nCaption clips (sharing a captionGroupId) come back per track as captionGroups summaries: clipCount, frameRange, shared style, and a textPreview — individual caption clips and their ids are NOT listed. That summary is all you need to restyle (update_text with captionGroupId) or judge coverage; the spoken words live in get_transcript. Only when you must touch individual caption clips (retime one, delete one, fix one word's style), re-read with captionDetail:true — ideally windowed — to get [clipId, startFrame, endFrame, text] rows, capped at 200 per group. Caption clips whose properties deviate from the group always appear individually in clips.\n\nmarkers contains persistent review notes with markerId, name, comment, color, startFrame, endFrame, and durationFrames. Point markers have durationFrames 0; range markers use half-open [startFrame, endFrame). Windowed reads include only markers in or intersecting the window.",
             inputSchema: objectSchema(
                 properties: [
                     "startFrame": ["type": "integer", "description": "Optional. Window start (inclusive); only clips intersecting [startFrame, endFrame) are returned. Omit both startFrame and endFrame for the whole timeline — never pass a zero-width window. Tracks report totalClips when the window hides some."],
@@ -119,6 +122,22 @@ enum ToolDefinitions {
                     "timelineId": ["type": "string", "description": "Timeline id from get_media's timelines list (or a sequence clip's mediaRef)."],
                 ],
                 required: ["timelineId"]
+            )
+        ),
+        AgentTool(
+            name: .manageMarkers,
+            description: "Creates, updates, or deletes one persistent timeline marker. A zero duration marks one frame; a positive duration is half-open.",
+            inputSchema: objectSchema(
+                properties: [
+                    "action": ["type": "string", "enum": ["create", "update", "delete"]],
+                    "markerId": ["type": "string", "description": "Required for update/delete. From get_timeline."],
+                    "name": ["type": "string"],
+                    "startFrame": ["type": "integer", "description": "Timeline frame."],
+                    "durationFrames": ["type": "integer", "description": "0 for a point; positive for a range."],
+                    "color": ["type": "string", "description": "#RGB, #RRGGBB, or #RRGGBBAA."],
+                    "comment": ["type": "string"],
+                ],
+                required: ["action"]
             )
         ),
         AgentTool(
@@ -207,7 +226,7 @@ enum ToolDefinitions {
         ),
         AgentTool(
             name: .importMedia,
-            description: "Imports external media into the project's library — the bridge for assets coming from other MCP servers (stock libraries, music services, web search) or local files the user already has. The 'source' object must set exactly one of: url (HTTPS only — downloaded in the background, the dominant case; max 1 GB), path (absolute local file path — referenced in place and not copied into the project; may also be a directory, which is imported recursively, mirroring its subfolder structure as media folders), bytes (base64-encoded inline data — max ~15 MB of base64 ≈ 11 MB binary; use url/path for anything larger), or matte (a generated solid-color PNG). For url, type is inferred from the URL path's file extension unless source.mimeType is set as an override (needed for signed URLs whose path has no usable extension). For bytes, source.mimeType is required.\n\nSupported types and extensions: video (mov, mp4, m4v), audio (mp3, wav, aac, m4a, aiff, aifc, caf, flac), image (png, jpg, jpeg, tiff, heic). Anything else is rejected — the caller must transcode externally.\n\nURL imports run in the background and return {mediaRef, status:'downloading'} — poll get_media with ids:[mediaRef] until generationStatus clears, then the asset is usable in add_clips. Path, directory, bytes, and matte imports finish inline with status:'ready'. Costs nothing.",
+            description: "Imports external media into the project's library — the bridge for assets coming from other MCP servers (stock libraries, music services, web search) or local files the user already has. The 'source' object must set exactly one of: url (HTTPS only — downloaded in the background, the dominant case; max 1 GB), path (absolute local file path — referenced in place and not copied into the project; may also be a directory, which is imported recursively, mirroring its subfolder structure as media folders), bytes (base64-encoded inline data — max ~15 MB of base64 ≈ 11 MB binary; use url/path for anything larger), or matte (a generated solid-color PNG). For url, type is inferred from the URL path's file extension unless source.mimeType is set as an override (needed for signed URLs whose path has no usable extension). For bytes, source.mimeType is required.\n\nSupported types and extensions: video (mov, mp4, m4v), audio (mp3, wav, aac, m4a, aiff, aifc, caf, flac), image (png, jpg, jpeg, tiff, heic), subtitle (srt, vtt — becomes a subtitle asset; place its cues as caption clips at their timecodes via add_captions subtitleMediaRef or a user drag onto the timeline; not placeable via add_clips). Anything else is rejected — the caller must transcode externally.\n\nURL imports run in the background and return {mediaRef, status:'downloading'} — poll get_media with ids:[mediaRef] until generationStatus clears, then the asset is usable in add_clips. Path, directory, bytes, and matte imports finish inline with status:'ready'. Costs nothing.",
             inputSchema: objectSchema(
                 properties: [
                     "source": [
@@ -230,7 +249,7 @@ enum ToolDefinitions {
                                 ],
                                 "required": ["hex"],
                             ],
-                            "mimeType": ["type": "string", "description": "Required when bytes is set. Optional override for url when its path has no usable extension (e.g. signed URLs). Accepted: video/mp4, video/quicktime, audio/mpeg, audio/wav, audio/aac, audio/mp4, image/png, image/jpeg, image/tiff, image/heic."],
+                            "mimeType": ["type": "string", "description": "Required when bytes is set. Optional override for url when its path has no usable extension (e.g. signed URLs). Accepted: video/mp4, video/quicktime, audio/mpeg, audio/wav, audio/aac, audio/mp4, image/png, image/jpeg, image/tiff, image/heic, application/x-subrip, text/vtt."],
                         ],
                     ],
                     "name": ["type": "string", "description": "Display name in the library. Defaults to the filename derived from url/path, or 'Imported asset' for bytes."],
@@ -399,7 +418,7 @@ enum ToolDefinitions {
         ),
         AgentTool(
             name: .manageTracks,
-            description: "Reorders, configures, or removes tracks in one undoable action. Prefer stable trackId selectors; numeric indexes use the order at call time. Index 0 renders on top, and reorder destinations must stay within the track's video/audio zone. Arrays run reorder → set → remove. Returns receipts and the resulting track order. Tracks holding multicam clips can't be removed or sync-unlocked.",
+            description: "Reorders, names, configures, or removes tracks in one undoable action. Prefer stable trackId selectors; numeric indexes use the order at call time. Index 0 renders on top, and reorder destinations must stay within the track's video/audio zone. Arrays run reorder → set → remove. User-authored names are returned separately from generated V1/A1 labels. Returns receipts and the resulting track order. Tracks holding multicam clips can't be removed or sync-unlocked.",
             inputSchema: objectSchema(
                 properties: [
                     "reorder": [
@@ -425,6 +444,11 @@ enum ToolDefinitions {
                                 "muted": ["type": "boolean", "description": "Silence/unsilence the track's audio."],
                                 "hidden": ["type": "boolean", "description": "Exclude/include a video track in the render."],
                                 "syncLocked": ["type": "boolean", "description": "Whether ripple edits shift this track along."],
+                                "name": [
+                                    "type": "string",
+                                    "maxLength": TrackName.maximumLength,
+                                    "description": "Prefer exactly one short word with no spaces. Avoid generic suffixes: use Main, Brand, Headline, Outro, Product, Dialogue, Music, SFX, Ambience, or Foley; not Main Video, Brand Text, Outro Video, or Audio Bed. Preserve an exact user-supplied name and pass an empty string to clear it.",
+                                ],
                             ],
                         ],
                     ],
@@ -543,14 +567,42 @@ enum ToolDefinitions {
             )
         ),
         AgentTool(
+            name: .copyClipSettings,
+            description: "Copy one clip's static settings to one or more clips of the same media type in a single undoable action. Use for requests such as \"make these shots look like that one,\" \"use this title style,\" or \"give these audio clips the same treatment.\"\n\nChoose exactly one target mode. targetClipIds applies to an explicit list and refuses any mismatched media type. targetTrack selects every same-type clip on one stable trackId; add range [startFrame, endFrame) to limit it to clips intersecting that part of the timeline. Track mode excludes the source and mismatched clips, returns compact matched/changed/unchanged/incompatible counts instead of clip IDs, and refuses when no compatible clips match.\n\nVideo, image, Lottie, and nested-timeline clips copy transform, crop, opacity, edge rounding/softness, blend mode, and the complete effect stack including color. Text clips copy typography/style, text animation, fill mode, position, rotation, flips, opacity, and effects; target text, word timings, and caption membership stay intact, and the box is refit to the target content. Audio clips copy volume and effects, including denoise. Settings absent from the source clear the corresponding target setting.\n\nThis does NOT copy placement, duration, trims, speed, fades, top-level keyframes, media, links, caption groups, or multicam membership. Use set_clip_properties and set_keyframes for temporal changes. Linked audio is a separate audio clip: copy it explicitly using the nested audio.id from get_timeline.",
+            inputSchema: objectSchema(
+                properties: [
+                    "sourceClipId": ["type": "string", "description": "Clip whose current static settings are copied."],
+                    "targetClipIds": [
+                        "type": "array",
+                        "items": ["type": "string"],
+                        "description": "Explicit destination clips. Every target must have the same mediaType as the source. Use this or targetTrack, not both.",
+                    ],
+                    "targetTrack": objectSchema(
+                        properties: [
+                            "trackId": ["type": "string", "description": "Stable trackId from get_timeline."],
+                            "range": [
+                                "type": "array",
+                                "items": ["type": "integer"],
+                                "minItems": 2,
+                                "maxItems": 2,
+                                "description": "Optional [startFrame, endFrame) timeline range. Only intersecting clips are considered; omit for the whole track.",
+                            ],
+                        ],
+                        required: ["trackId"]
+                    ),
+                ],
+                required: ["sourceClipId"]
+            )
+        ),
+        AgentTool(
             name: .setKeyframes,
-            description: "Set animated keyframes on one property of one clip. Replaces the existing keyframe track for that property (pass an empty array to clear). Frames are CLIP-RELATIVE offsets (0 = first frame of the clip), so keyframes follow the clip when it moves. Rows are sorted by frame internally and the LAST row for any duplicate frame wins. Values must be finite numbers. Each row is `[frame, ...values, interp?]` where interp ∈ {linear, hold, smooth} (default smooth).\n\nProperties and their value layouts:\n  • volumeDb `[frame, decibels]` — −60 through +15 dB; 0 dB keeps source level and −60 dB is mute\n  • opacity `[frame, value]` — value 0.0–1.0\n  • rotation `[frame, degrees]` — clockwise degrees\n  • position `[frame, topLeftX, topLeftY]` — TOP-LEFT corner in 0–1 normalized canvas coords. NOT the center. (Default static transform centers a full-canvas clip, so top-left of the static is (0, 0); a centered half-size clip has top-left (0.25, 0.25).)\n  • scale `[frame, width, height]` — clip's normalized width and height in 0–1 canvas coords (1.0 = fills the canvas axis). NOT a scale factor.\n  • crop `[frame, top, right, bottom, left]` — side insets in 0–1 of the source media.\n\nMotion keyframes (position/scale/rotation) override the static `transform` value when active.",
+            description: "Set animated keyframes on one property of one clip. Replaces the existing keyframe track for that property (pass an empty array to clear). Frames are CLIP-RELATIVE offsets (0 = first frame of the clip), so keyframes follow the clip when it moves. Rows are sorted by frame internally and the LAST row for any duplicate frame wins. Values must be finite numbers. Each row is `[frame, ...values, interp?]` where interp ∈ {linear, hold, smooth} (default smooth).\n\nProperties and their value layouts:\n  • volumeDb `[frame, decibels]` — −60 through +15 dB; 0 dB keeps source level and −60 dB is mute\n  • opacity `[frame, value]` — value 0.0–1.0\n  • rotation `[frame, degrees]` — clockwise degrees\n  • position `[frame, topLeftX, topLeftY]` — TOP-LEFT corner in 0–1 normalized canvas coords. NOT the center. (Default static transform centers a full-canvas clip, so top-left of the static is (0, 0); a centered half-size clip has top-left (0.25, 0.25).)\n  • scale `[frame, width, height]` — clip's normalized width and height in 0–1 canvas coords (1.0 = fills the canvas axis), NOT a scale factor. Text clips use this same track; use matching width/height ratios for uniform text scale.\n  • crop `[frame, top, right, bottom, left]` — side insets in 0–1 of the source media.\n  • blur `[frame, radius]` — whole-layer Gaussian blur from 0–100 px; supported by visual clips including video, images, text, and nested timelines.\n\nMotion keyframes (position/scale/rotation) override the static `transform` value when active.",
             inputSchema: objectSchema(
                 properties: [
                     "clipId": ["type": "string", "description": "The clip ID."],
                     "property": [
                         "type": "string",
-                        "enum": ["volumeDb", "opacity", "rotation", "position", "scale", "crop"],
+                        "enum": ["volumeDb", "opacity", "rotation", "position", "scale", "crop", "blur"],
                         "description": "Which property's keyframe track to set.",
                     ],
                     "keyframes": [
@@ -704,7 +756,7 @@ enum ToolDefinitions {
         ),
         AgentTool(
             name: .getTranscript,
-            description: "Returns the spoken transcript of the CURRENT timeline in project frames — the post-edit caption track in one call. Unlike inspect_media (which transcribes one source asset in isolation, in source seconds), this walks every audio/video clip on the timeline, maps each word through that clip's trim/speed/position, and concatenates in timeline order. Deleted ranges are gone by construction, so after cuts this always reflects what's actually audible — no stale results, no per-clip frame math. Pass trackIndex to isolate one dialogue or multicam mic track; omit it to read every eligible timeline source (multicam defaults to its master mic). CreatorStudio Editor uses local on-device transcription and reports local as transcriptionSource.\n\nReturns clips in timeline order, each with its words as compact [index, text, startFrame] rows (a word runs to the next word's start; the last word to its clip's end). The index is a stable, 0-based position in the requested transcript; pass it straight to remove_words to cut that word (the intuitive path for text-based editing). Indices stay stable when paged with a window. Capped at 10000 words; page with startFrame/endFrame using nextStartFrame.\n\nFor comprehension rather than cutting — summarizing, finding a topic, take selection on long media — pass granularity='segments': sentence rows [firstWordIndex, text, start, end] at a fraction of the tokens, whose firstWordIndex jumps you back into word mode for the cut window.\n\nUse for transcript-driven edits (filler-word / dead-air removal, locating a quote, take selection) and to verify what remains after cutting. To cut, prefer remove_words (give it the indices); drop to ripple_delete_ranges only for non-word-aligned spans.",
+            description: "Returns the spoken transcript of the CURRENT timeline in project frames — the post-edit caption track in one call. Unlike inspect_media (which transcribes one source asset in isolation, in source seconds), this walks every audio/video clip on the timeline, maps each word through that clip's trim/speed/position, and concatenates in timeline order. Deleted ranges are gone by construction, so after cuts this always reflects what's actually audible — no stale results, no per-clip frame math. Pass trackIndex to isolate one dialogue or multicam mic track; omit it to read every eligible timeline source (multicam defaults to its master mic). CreatorStudio Editor uses local on-device transcription and reports local as transcriptionSource.\n\nReturns clips in timeline order, each with its words as compact [index, text, startFrame] rows (a word runs to the next word's start; the last word to its clip's end). Speakers, when identified, arrive as run-length turns: speakers = [[firstWordIndex, name], ...]. The index is a stable, 0-based position in the requested transcript; pass it straight to remove_words to cut that word (the intuitive path for text-based editing). Indices stay stable when paged with a window. Capped at 10000 words; page with startFrame/endFrame using nextStartFrame.\n\nFor comprehension rather than cutting — summarizing, finding a topic, take selection on long media — pass granularity='segments': sentence rows [firstWordIndex, text, start, end] at a fraction of the tokens, whose firstWordIndex jumps you back into word mode for the cut window.\n\nUse for transcript-driven edits (filler-word / dead-air removal, locating a quote, take selection) and to verify what remains after cutting. To cut, prefer remove_words (give it the indices); drop to ripple_delete_ranges only for non-word-aligned spans.",
             inputSchema: objectSchema(
                 properties: [
                     "startFrame": ["type": "integer", "description": "Optional. Only return words ending after this project frame. Use with the returned nextStartFrame to page a long timeline."],
@@ -712,7 +764,7 @@ enum ToolDefinitions {
                     "clipId": ["type": "string", "description": "Scope the transcript to a single clip — returns only what that clip says, in project frames. Answers \"what's in clip X?\" without scanning the whole timeline."],
                     "trackIndex": ["type": "integer", "description": "Scope transcription to one current timeline track from get_timeline. Use this to choose a dialogue or multicam mic lane. Mutually exclusive with clipId."],
                     "granularity": ["type": "string", "enum": ["words", "segments"], "description": "words (default) for cutting with remove_words; segments for cheap sentence-level reading — rows carry firstWordIndex to drill back into words."],
-                    "language": ["type": "string", "description": "Optional BCP-47 speech language. Applies to local only; cloud auto-detects."],
+                    "language": ["type": "string", "description": "Optional BCP-47 speech language for local transcription."],
                 ]
             )
         ),
@@ -782,7 +834,7 @@ enum ToolDefinitions {
         ),
         AgentTool(
             name: .addTexts,
-            description: "Adds text clips as timeline layers. Omit trackIndex on every entry to create one new top video track; otherwise set trackIndex on every entry. Text boxes auto-fit their content; transform optionally sets their alignment-relative horizontal anchor, vertical center, and rotation. Left-aligned text grows rightward from x, centered text grows around x, and right-aligned text grows leftward from x. Use style widthScale and heightScale to stretch glyphs. Use the nested style object for typography, outline, shadow, and background. fillMode 'footage' stencils layers below through the letter shapes. Use add_captions for spoken audio captions. Unknown fields are rejected.",
+            description: "Adds text clips as timeline layers. Omit trackIndex on every entry to create one new top video track; otherwise set trackIndex on every entry. Text boxes auto-fit their content; transform optionally sets their alignment-relative horizontal anchor, vertical center, Z rotation, and static X/Y perspective tilt. Left-aligned text grows rightward from x, centered text grows around x, and right-aligned text grows leftward from x. Use style widthScale and heightScale to stretch glyphs. Use the nested style object for typography, outline, shadow, background, and whole-layer Gaussian blur. fillMode 'footage' stencils layers below through the letter shapes over a matte set by style.color; it defaults to black when color is omitted. 'inverted' renders white glyphs with Difference blending and ignores color, outline, shadow, and background while active. Use add_captions for spoken audio captions. Unknown fields are rejected.",
             inputSchema: objectSchema(
                 properties: [
                     "entries": [
@@ -803,7 +855,7 @@ enum ToolDefinitions {
                             ], textStyleProperties(detailed: false), [
                                 "animation": ["type": "string", "enum": TextAnimation.Preset.agentValues, "description": "Animation preset; off clears."],
                                 "highlightColor": ["type": "string", "description": "Active-word hex."],
-                                "fillMode": ["type": "string", "enum": ["color", "footage"], "description": "color = solid typography (default). footage = stencil layers below through the letter shapes."],
+                                "fillMode": ["type": "string", "enum": TextFillMode.allCases.map(\.rawValue), "description": "color = solid typography (default). footage = stencil layers below through the letter shapes over a matte set by style.color, defaulting to black when color is omitted. inverted = white Difference-blended glyphs; color, outline, shadow, and background are ignored while active."],
                             ]),
                             "required": ["startFrame", "endFrame", "content"],
                         ],
@@ -814,7 +866,7 @@ enum ToolDefinitions {
         ),
         AgentTool(
             name: .updateText,
-            description: "Updates text clips or a captionGroupId. The nested style object is a partial patch: omitted values stay unchanged. Use it for typography, color, outline, shadow, and background. Use style widthScale and heightScale to stretch glyphs. fillMode 'footage' stencils layers below through the glyphs. Content and layout-affecting style changes auto-fit the box while preserving its alignment-relative x anchor. transform can reposition or rotate it without changing its size. Static rotation uses clockwise degrees and clears rotation keyframes. Unknown fields are rejected.",
+            description: "Updates text clips or a captionGroupId. The nested style object is a partial patch: omitted values stay unchanged. Use it for typography, color, outline, shadow, background, and whole-layer Gaussian blur. style.blur is measured in 1080p canvas pixels, scales with output resolution, and 0 removes it; setting it clears blur keyframes. Use style widthScale and heightScale to stretch glyphs. fillMode 'footage' stencils layers below through the glyphs over a matte set by style.color; entering it defaults to black when color is omitted. 'inverted' renders white glyphs with Difference blending and ignores color, outline, shadow, and background while active. Content and layout-affecting style changes auto-fit the box while preserving its alignment-relative x anchor. transform can reposition, rotate, or apply static X/Y perspective tilt without changing its size. Static Z rotation uses clockwise degrees and clears rotation keyframes. Unknown fields are rejected.",
             inputSchema: objectSchema(
                 properties: mergedProperties([
                     "clipIds": [
@@ -832,17 +884,18 @@ enum ToolDefinitions {
                 ], textStyleProperties(detailed: true), [
                     "animation": ["type": "string", "enum": TextAnimation.Preset.agentValues, "description": "Animation preset; off clears."],
                     "highlightColor": ["type": "string", "description": "Active-word hex."],
-                    "fillMode": ["type": "string", "enum": ["color", "footage"], "description": "color = solid typography. footage = stencil layers below through the letter shapes."],
+                    "fillMode": ["type": "string", "enum": TextFillMode.allCases.map(\.rawValue), "description": "color = solid typography. footage = stencil layers below through the letter shapes over a matte set by style.color, defaulting to black when entering without color. inverted = white Difference-blended glyphs; color, outline, shadow, and background are ignored while active."],
                 ]),
                 required: []
             )
         ),
         AgentTool(
             name: .addCaptions,
-            description: "Transcribes spoken audio locally and creates caption text clips on their own track. Style, animation, and transform are optional overrides: omit them ALL for the app's clean default captions (plain white Helvetica, lower-third) — do not invent fonts, colors, outlines, backgrounds, or animations the user didn't ask for. Pass trackIndex to caption one dialogue or multicam mic track; omit it to automatically choose the timeline track with the most speech. Per-word animations are timed from the transcript. Returns the caption group summary (captionGroupId, clipCount, frameRange, shared style, textPreview) — restyle it later with update_text and that captionGroupId.",
+            description: "Transcribes spoken audio locally and creates caption text clips on their own track. Style, animation, and transform are optional overrides: omit them ALL for the app's clean default captions (plain white Helvetica, lower-third) — do not invent fonts, colors, outlines, backgrounds, blur, or animations the user didn't ask for. style.blur adds whole-layer Gaussian blur. Pass trackIndex to caption one dialogue or multicam mic track; omit it to automatically choose the timeline track with the most speech. Per-word animations are timed from the transcript. Alternatively, pass subtitleMediaRef (a subtitle asset from import_media/get_media) to place that SRT/WebVTT file's cues as captions at their authored timecodes — no transcription; the file's text, timing, and default styling are used as-is (overlapping cues are trimmed so clips never overlap on the track), so subtitleMediaRef can't be combined with any other parameter. Returns the caption group summary (captionGroupId, clipCount, frameRange, shared style, textPreview) — restyle it later with update_text and that captionGroupId.",
             inputSchema: objectSchema(
                 properties: mergedProperties([
-                    "language": ["type": "string", "description": "BCP-47 speech language. Applies to local only; cloud auto-detects."],
+                    "subtitleMediaRef": ["type": "string", "description": "Subtitle asset id (type 'subtitle'). Places the file's cues at their timecodes instead of transcribing. Mutually exclusive with every other parameter."],
+                    "language": ["type": "string", "description": "BCP-47 speech language for local transcription."],
                     "trackIndex": ["type": "integer", "description": "Caption one current timeline track from get_timeline. Omit to auto-detect the dominant speech track."],
                     "transform": [
                         "type": "object",
@@ -942,7 +995,8 @@ enum ToolDefinitions {
             you pass is added or updated by type; effects you don't mention are left in place. Pass enabled:false \
             to bypass one without removing it, or list its type in `remove` to delete it. Out-of-range params are \
             clamped; params you omit keep their current (or default) value. Effects render in a fixed canonical \
-            order regardless of the order you pass them. Undoable. Returns the clips with their resulting \
+            order regardless of the order you pass them. Setting blur.gaussian.radius clears blur keyframes. \
+            Undoable. Returns the clips with their resulting \
             effects as [{type, params}] — the same shape this tool accepts, so copying effects between clips \
             is passing a clip's effects array back in.
 
@@ -1113,6 +1167,41 @@ enum ToolDefinitions {
         )
     )
 
+    /// In-app assistant only
+    static let manageSkills = AgentTool(
+        name: .manageSkills,
+        description: "Create, update, or permanently remove reusable skills for the in-app assistant. Set `action` to: `create` with name, description, and complete Markdown instructions; `update` with an exact skill id and at least one field to replace; or `remove` with an exact skill id. Updates are partial patches, but `instructions`, when present, replaces the complete Markdown body, so call read_skill first when preserving existing instructions. Use remove only when the user explicitly asks to delete that skill. The app generates and returns a stable id for created skills.",
+        inputSchema: objectSchema(
+            properties: [
+                "action": [
+                    "type": "string",
+                    "enum": ["create", "update", "remove"],
+                    "description": "Skill operation.",
+                ],
+                "id": [
+                    "type": "string",
+                    "description": "Update/remove only. Exact skill id listed under # Skills.",
+                ],
+                "name": [
+                    "type": "string",
+                    "maxLength": Skill.Limits.maximumNameLength,
+                    "description": "Create/update. Concise skill display name on one line.",
+                ],
+                "description": [
+                    "type": "string",
+                    "maxLength": Skill.Limits.maximumDescriptionLength,
+                    "description": "Create/update. One-line trigger description explaining when the assistant should use the skill.",
+                ],
+                "instructions": [
+                    "type": "string",
+                    "maxLength": Skill.Limits.maximumInstructionsLength,
+                    "description": "Create/update. Complete replacement Markdown instructions without YAML frontmatter.",
+                ],
+            ],
+            required: ["action"]
+        )
+    )
+
     /// MCP server only
     static let manageProject = AgentTool(
         name: .manageProject,
@@ -1139,13 +1228,15 @@ enum ToolDefinitions {
     )
 
     static var mcpServer: [AgentTool] { all.filter { $0.name != .upscaleMedia } + [manageProject] }
-    static var inAppAgent: [AgentTool] { all.filter { $0.name != .upscaleMedia } + [readSkill] }
+    static var inAppAgent: [AgentTool] { all.filter { $0.name != .upscaleMedia } + [readSkill, manageSkills] }
 
     private static func textTransformProperties() -> [String: [String: Any]] {
         [
             "x": ["type": "number", "description": "Normalized horizontal anchor of the unrotated text box: the left edge for left alignment, center for center alignment, or right edge for right alignment."],
             "y": ["type": "number", "description": "Normalized vertical center."],
-            "rotation": ["type": "number", "description": "Clockwise degrees."],
+            "rotation": ["type": "number", "description": "Clockwise Z-axis degrees."],
+            "rotationX": ["type": "number", "minimum": Transform.tiltRotationRange.lowerBound, "maximum": Transform.tiltRotationRange.upperBound, "description": "Static X-axis perspective rotation in degrees. Positive tips the top edge away from the viewer."],
+            "rotationY": ["type": "number", "minimum": Transform.tiltRotationRange.lowerBound, "maximum": Transform.tiltRotationRange.upperBound, "description": "Static Y-axis perspective rotation in degrees. Positive brings the right edge toward the viewer."],
         ]
     }
 
@@ -1169,6 +1260,7 @@ enum ToolDefinitions {
                     "fontCase": ["type": "string", "enum": ["mixed", "uppercase", "lowercase"], "description": "Non-destructive display casing."],
                     "alignment": ["type": "string", "enum": ["left", "center", "right"], "description": "Text alignment."],
                     "color": ["type": "string", "description": "Text color as #RGB, #RRGGBB, or #RRGGBBAA."],
+                    "blur": ["type": "number", "minimum": 0, "maximum": 100, "description": "Whole-layer Gaussian blur in 1080p canvas pixels. Blurs glyphs, outline, shadow, and background; 0 removes it."],
                     "outline": [
                         "type": "object",
                         "properties": [

@@ -58,6 +58,8 @@ enum AppTheme {
         )
         static let timelineClip = AppTheme.adaptive(light: .white, dark: .black)
         static let timelineClipSelected = AppTheme.adaptive(light: .black, dark: .white)
+        static let timelineMarker = AppTheme.adaptive(light: .white, dark: .black)
+        static let timelineMarkerSelected = AppTheme.adaptive(light: .black, dark: .white)
 
         static var primaryColor: Color { Color(primary) }
         static var subtleColor: Color { Color(subtle) }
@@ -190,6 +192,36 @@ enum AppTheme {
         static var warningColor: Color { Color(warning) }
     }
 
+    enum AgentActivity {
+        static let added = NSColor.systemGreen
+        static let mutated = NSColor.systemOrange
+        static let read = NSColor(
+            srgbRed: 0x64 / 255.0,
+            green: 0x74 / 255.0,
+            blue: 0x8B / 255.0,
+            alpha: 1
+        )
+        static let readFill = read.withAlphaComponent(AppTheme.Opacity.faint)
+        static let changeGlowOpacity: Float = 0.8
+        static let changeGlowRadius: CGFloat = 8
+        static let readGlowOpacity: Float = 0.35
+        static let readGlowRadius: CGFloat = 4
+    }
+
+    enum TimelineMarker {
+        static let flagWidth: CGFloat = 10
+        static let flagHeight: CGFloat = 12
+        static let rangeBarHeight: CGFloat = 4
+        static let hitSlop: CGFloat = 3
+        static let editorWidth: CGFloat = 320
+        static let timeFieldWidth: CGFloat = 82
+        static let notesHeight: CGFloat = 54
+        static let presetColors = [
+            "#4094FF", "#40CCE6", "#40BF5C", "#F2C72E", "#FF8C26", "#E64040", "#F259A6",
+            "#A666F2", "#8CBFFF", "#73E6B8", "#A6D936", "#C79E6B", "#D1D1D1",
+        ].compactMap(TextStyle.RGBA.init(hex:))
+    }
+
     // MARK: - Text
 
     enum Text {
@@ -257,6 +289,7 @@ enum AppTheme {
 
     enum Opacity {
         static let opaque: Double = 1
+        static let hitTarget: Double = 0.001
         static let subtle: Double = 0.04
         static let hint: Double = 0.06
         static let faint: Double = 0.08
@@ -385,7 +418,6 @@ enum AppTheme {
     }
 
     enum ComponentSize {
-        static let captionPreviewMaxHeight: CGFloat = 150
         static let captionPreviewMaxTextWidthRatio: CGFloat = 0.9
         static let toolImagePreviewMaxHeight: CGFloat = 50
         static let projectCardWidth: CGFloat = 150
@@ -395,6 +427,20 @@ enum AppTheme {
         static let timelineClipDetailMinWidth: CGFloat = 32
         static let timelineClipControlsMinWidth: CGFloat = 48
         static let timelineTabRenameWidth: CGFloat = 120
+        static let timelineTrackHeaderDefaultWidth: CGFloat = 160
+        static let timelineTrackHeaderMinimumWidth: CGFloat = 112
+        static let timelineTrackHeaderMaximumWidth: CGFloat = 320
+        static let timelineTrackHeaderResizeHitWidth: CGFloat = 8
+        static let timelineTrackHeaderColorStripWidth: CGFloat = 3
+        static let timelineTrackHeaderReorderLeadingInset: CGFloat = 9
+        static let timelineKeyframeResizeHandleWidth: CGFloat =
+            timelineTrackHeaderReorderLeadingInset + AppTheme.IconSize.md
+        static let timelineKeyframeTrackHeaderMinimumWidth: CGFloat = 220
+        static let timelineKeyframeValueFieldWidth: CGFloat = 36
+        static let timelineKeyframeValueFieldHeight: CGFloat = 18
+        static let timelineKeyframeLaneHeight: CGFloat = 24
+        static let timelineKeyframeDiamondSize: CGFloat = 8
+        static let timelineKeyframeHitSize: CGFloat = 14
         static let timelineClipLabelMinWidth: CGFloat = 56
         static let timelineBadgePadH: CGFloat = 4
         static let timelineBadgePadV: CGFloat = 1
@@ -407,6 +453,9 @@ enum AppTheme {
         static let cardWidth: CGFloat = 520
         static let cardHeight: CGFloat = 420
         static let welcomeHeroHeight: CGFloat = 240
+        static var secondaryButtonFill: Color {
+            AppTheme.Accent.primary.opacity(AppTheme.Opacity.muted)
+        }
     }
 
     enum Settings {
@@ -452,8 +501,6 @@ enum AppTheme {
 
     enum Caption {
         static let defaultFontSize: Double = 48
-        static let minPosition: Double = 0
-        static let maxPosition: Double = 1
         static let centerSnapValue: CGFloat = 0.5
         static let centerSnapThreshold: Double = 0.02
         static let defaultCenterY: CGFloat = 0.9
@@ -513,6 +560,12 @@ enum AppTheme {
         static let transition: Double = 0.2
         static let pulse: Double = 0.8
         static let slipPreviewRefresh: Duration = .milliseconds(67)
+        static let agentChangeHighlightHold: Double = 1.0
+        static let agentChangeHighlightFade: Double = 0.3
+        static let agentChangeHighlightDuration = agentChangeHighlightHold + agentChangeHighlightFade
+        static let agentReadHighlightHold: Double = 0.7
+        static let agentReadHighlightFade: Double = 0.25
+        static let agentReadHighlightDuration = agentReadHighlightHold + agentReadHighlightFade
     }
 }
 
@@ -526,9 +579,13 @@ extension View {
     func panelHeaderBar() -> some View {
         frame(maxWidth: .infinity)
             .frame(height: Layout.panelHeaderHeight)
-            .background(AppTheme.Background.raisedColor)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(AppTheme.Border.primaryColor).frame(height: AppTheme.BorderWidth.thin)
+            .background {
+                ZStack(alignment: .bottom) {
+                    AppTheme.Background.raisedColor
+                    Rectangle()
+                        .fill(AppTheme.Border.primaryColor)
+                        .frame(height: AppTheme.BorderWidth.thin)
+                }
             }
     }
 }
@@ -544,6 +601,7 @@ extension ClipType {
         case .text: AppTheme.TrackColor.text
         case .lottie: AppTheme.TrackColor.lottie
         case .sequence: AppTheme.TrackColor.sequence
+        case .subtitle: AppTheme.TrackColor.text
         }
     }
 

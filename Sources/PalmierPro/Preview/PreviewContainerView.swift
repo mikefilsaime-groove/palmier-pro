@@ -6,9 +6,11 @@ struct PreviewContainerView: View {
 
     private var isTimeline: Bool { editor.activePreviewTab == .timeline }
     private var isImage: Bool { editor.activePreviewTab.clipType == .image }
+    private var isSubtitle: Bool { editor.activePreviewTab.clipType == .subtitle }
 
     @State private var hoveredTabId: String?
     @State private var failedImagePreviewKey: String?
+    @State private var canvasOverlays = CanvasOverlaySelection()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,76 +18,99 @@ struct PreviewContainerView: View {
                 .padding(.horizontal, AppTheme.Spacing.sm)
                 .panelHeaderBar()
 
-            GeometryReader { geo in
-                let aspect = generatingAspect ?? CGFloat(editor.timeline.width) / CGFloat(editor.timeline.height)
-                let fitSize = fitSize(in: geo.size, aspect: aspect)
-                let scaledWidth = fitSize.width * editor.canvasZoom
-                let scaledHeight = fitSize.height * editor.canvasZoom
-                let timelineState = timelineFrameState
-                ZStack {
-                    PreviewView()
-                    if isImage {
-                        imagePreview
-                    }
-                    if let error = activeFailedError {
-                        failedPreview(error: error)
-                    }
-                    if let asset = activeMediaAsset, asset.isGenerating {
-                        generatingPreview(label: asset.generatingLabel)
-                    } else if case .generating(let label) = timelineState {
-                        generatingPreview(label: label)
-                    }
-                    if let overlay = offlineOverlay(timelineState: timelineState) {
-                        offlinePreview(assetId: overlay.assetId, path: overlay.path, isUnprocessable: overlay.isUnprocessable)
-                    }
-                    if editor.chromaKeySamplingClipId != nil {
-                        ChromaKeySamplerOverlayView()
-                    } else if editor.cropEditingActive {
-                        CropOverlayView()
-                    } else {
-                        TransformOverlayView()
-                    }
-                    if let slip = editor.slipPreview, isTimeline {
-                        SlipTwoUpView(state: slip)
-                    }
-                }
-                .frame(width: scaledWidth, height: scaledHeight)
-                .simultaneousGesture(
-                    SpatialTapGesture()
-                        .onEnded { value in
-                            guard isTimeline,
-                                  !editor.cropEditingActive,
-                                  editor.chromaKeySamplingClipId == nil,
-                                  let id = PreviewHitTester.clipID(
-                                    at: value.location,
-                                    viewSize: CGSize(width: scaledWidth, height: scaledHeight),
-                                    editor: editor
-                                  ) else { return }
-                            editor.selectPreviewClip(id)
-                        }
-                )
-                .overlay(
-                    Rectangle()
-                        .stroke(
-                            AppTheme.MediaOverlay.primaryColor.opacity(editor.canvasZoom < 1.0 ? AppTheme.Opacity.moderate : 0),
-                            lineWidth: AppTheme.BorderWidth.thin
-                        )
-                )
-                .position(x: geo.size.width / 2, y: geo.size.height / 2)
-                .offset(x: editor.canvasOffset.width, y: editor.canvasOffset.height)
+            if isSubtitle {
+                SubtitlePreviewView(url: activeMediaAsset?.url)
+            } else {
+                canvas
             }
-            .clipped()
-            if !isImage {
+            if isImage {
+                imageSettingsBar
+            } else if !isSubtitle {
                 scrubBar
                 transportBar
-            } else {
-                imageSettingsBar
             }
         }
         .background(AppTheme.Background.surfaceColor)
         .onChange(of: editor.activePreviewTabId) { _, _ in
             editor.cancelChromaKeySampling()
         }
+    }
+
+    private var canvas: some View {
+        GeometryReader { geo in
+            let aspect = generatingAspect ?? CGFloat(editor.timeline.width) / CGFloat(editor.timeline.height)
+            let fitSize = fitSize(in: geo.size, aspect: aspect)
+            let scaledWidth = fitSize.width * editor.canvasZoom
+            let scaledHeight = fitSize.height * editor.canvasZoom
+            let timelineState = timelineFrameState
+            let captionPreview = isTimeline && editor.captionPreviewEnabled
+                ? editor.captionPreviewConfiguration
+                : nil
+            ZStack {
+                PreviewView()
+                if isImage {
+                    imagePreview
+                }
+                if let error = activeFailedError {
+                    failedPreview(error: error)
+                }
+                if let asset = activeMediaAsset, asset.isGenerating {
+                    generatingPreview(label: asset.generatingLabel)
+                } else if case .generating(let label) = timelineState {
+                    generatingPreview(label: label)
+                }
+                if let overlay = offlineOverlay(timelineState: timelineState) {
+                    offlinePreview(assetId: overlay.assetId, path: overlay.path, isUnprocessable: overlay.isUnprocessable)
+                }
+                CanvasViewingOverlay(selection: canvasOverlays)
+                if editor.chromaKeySamplingClipId != nil {
+                    ChromaKeySamplerOverlayView()
+                } else if editor.cropEditingActive {
+                    CropOverlayView()
+                } else if let configuration = captionPreview {
+                    CaptionPreviewOverlay(
+                        configuration: configuration,
+                        canvas: CGSize(
+                            width: max(1, editor.timeline.width),
+                            height: max(1, editor.timeline.height)
+                        ),
+                        size: CGSize(width: scaledWidth, height: scaledHeight),
+                        onCenterChange: { editor.captionPreviewCenterChange?($0) }
+                    )
+                } else {
+                    TransformOverlayView()
+                }
+                if let slip = editor.slipPreview, isTimeline {
+                    SlipTwoUpView(state: slip)
+                }
+            }
+            .frame(width: scaledWidth, height: scaledHeight)
+            .simultaneousGesture(
+                SpatialTapGesture()
+                    .onEnded { value in
+                        guard isTimeline,
+                              captionPreview == nil,
+                              !editor.cropEditingActive,
+                              editor.chromaKeySamplingClipId == nil,
+                              let id = PreviewHitTester.clipID(
+                                at: value.location,
+                                viewSize: CGSize(width: scaledWidth, height: scaledHeight),
+                                editor: editor
+                              ) else { return }
+                        editor.selectPreviewClip(id)
+                    }
+            )
+            .overlay(
+                Rectangle()
+                    .stroke(
+                        AppTheme.MediaOverlay.primaryColor.opacity(editor.canvasZoom < 1.0 ? AppTheme.Opacity.moderate : 0),
+                        lineWidth: AppTheme.BorderWidth.thin
+                    )
+            )
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            .offset(x: editor.canvasOffset.width, y: editor.canvasOffset.height)
+        }
+        .clipped()
     }
 
     // MARK: - Transport bar
@@ -123,6 +148,7 @@ struct PreviewContainerView: View {
             if isTimeline || editor.activePreviewTab.clipType == .video {
                 captureFrameButton
             }
+            guidesMenuButton
             settingsMenuButton(
                 systemImage: "speedometer",
                 label: editor.playbackRate.label,
@@ -147,6 +173,7 @@ struct PreviewContainerView: View {
     private var imageSettingsBar: some View {
         HStack(spacing: AppTheme.Spacing.sm) {
             Spacer()
+            guidesMenuButton
             settingsMenuButton(
                 systemImage: "magnifyingglass",
                 label: zoomBadgeLabel,
@@ -193,6 +220,107 @@ struct PreviewContainerView: View {
         }
     }
 
+    private var guidesMenuButton: some View {
+        settingsMenuButton(
+            systemImage: canvasOverlays.isEmpty ? "viewfinder" : "viewfinder.circle.fill",
+            help: L10n.string("Canvas Guides"),
+            isActive: !canvasOverlays.isEmpty
+        ) {
+            canvasGuideMenuItems
+        }
+    }
+
+    @ViewBuilder
+    private var canvasGuideMenuItems: some View {
+        Menu {
+            Button {
+                canvasOverlays.grid = nil
+            } label: {
+                selectionMenuLabel(
+                    L10n.string("None"),
+                    selected: canvasOverlays.grid == nil
+                )
+            }
+            Divider()
+            ForEach(CanvasGridOverlay.allCases) { grid in
+                Button {
+                    canvasOverlays.grid = grid
+                } label: {
+                    selectionMenuLabel(
+                        grid.label,
+                        selected: canvasOverlays.grid == grid
+                    )
+                }
+            }
+        } label: {
+            Text(L10n.string("Grid"))
+        }
+
+        Menu {
+            ForEach(CanvasGuideOverlay.allCases) { guide in
+                Toggle(
+                    L10n.string(key: guide.localizationKey),
+                    isOn: guideBinding(for: guide)
+                )
+            }
+        } label: {
+            Text(L10n.string("Safe Zones"))
+        }
+
+        Menu {
+            Button {
+                canvasOverlays.format = nil
+            } label: {
+                selectionMenuLabel(
+                    L10n.string("None"),
+                    selected: canvasOverlays.format == nil
+                )
+            }
+            Divider()
+            ForEach(CanvasFormatOverlay.allCases) { format in
+                Button {
+                    canvasOverlays.format = format
+                } label: {
+                    selectionMenuLabel(
+                        L10n.string(key: format.localizationKey),
+                        selected: canvasOverlays.format == format
+                    )
+                }
+            }
+        } label: {
+            Text(L10n.string("Format References"))
+        }
+
+        Divider()
+        Button(L10n.string("Hide Guides")) {
+            canvasOverlays.clear()
+        }
+        .disabled(canvasOverlays.isEmpty)
+    }
+
+    private func guideBinding(for guide: CanvasGuideOverlay) -> Binding<Bool> {
+        Binding(
+            get: { canvasOverlays.guides.contains(guide) },
+            set: { enabled in
+                if enabled {
+                    canvasOverlays.guides.insert(guide)
+                } else {
+                    canvasOverlays.guides.remove(guide)
+                }
+            }
+        )
+    }
+
+    private func selectionMenuLabel(_ label: String, selected: Bool) -> some View {
+        HStack {
+            Text(verbatim: label)
+            Spacer()
+            if selected {
+                Image(systemName: "checkmark")
+            }
+        }
+    }
+
     @ViewBuilder
     private var zoomMenuItems: some View {
         ForEach(ZoomPreset.allCases, id: \.self) { preset in
@@ -225,14 +353,15 @@ struct PreviewContainerView: View {
 
     private func settingsMenuButton<MenuContent: View>(
         systemImage: String,
-        label: String,
+        label: String? = nil,
         help: String,
+        isActive: Bool = false,
         @ViewBuilder menu: @escaping () -> MenuContent
     ) -> some View {
         Menu {
             menu()
         } label: {
-            badgeLabel(systemImage: systemImage, text: label)
+            settingsMenuLabel(systemImage: systemImage, text: label, isActive: isActive)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -240,7 +369,19 @@ struct PreviewContainerView: View {
         .hoverHighlight()
         .help(L10n.string(key: help))
         .accessibilityLabel(L10n.string(key: help))
-        .accessibilityValue(L10n.string(key: label))
+        .accessibilityValue(label.map { L10n.string(key: $0) } ?? "")
+    }
+
+    @ViewBuilder
+    private func settingsMenuLabel(systemImage: String, text: String?, isActive: Bool) -> some View {
+        if let text {
+            badgeLabel(systemImage: systemImage, text: text)
+        } else {
+            Image(systemName: systemImage)
+                .font(.system(size: AppTheme.FontSize.sm, weight: AppTheme.FontWeight.semibold))
+                .foregroundStyle(isActive ? AppTheme.Accent.primary : AppTheme.Text.secondaryColor)
+                .frame(width: AppTheme.IconSize.mdLg, height: AppTheme.IconSize.mdLg)
+        }
     }
 
     private func badgeLabel(systemImage: String, text: String) -> some View {
@@ -563,13 +704,13 @@ struct PreviewContainerView: View {
             }
         }
         .padding(.horizontal, AppTheme.Spacing.xs)
-        .padding(.bottom, AppTheme.Spacing.xs)
+        .frame(height: Layout.panelHeaderHeight)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(isActive ? tab.underlineColor : Color.clear)
-                .frame(height: AppTheme.BorderWidth.medium)
+                .frame(height: AppTheme.BorderWidth.thin)
         }
-        .fixedSize()
+        .fixedSize(horizontal: true, vertical: false)
         .contentShape(Rectangle())
         .onTapGesture {
             editor.selectPreviewTab(id: tab.id)

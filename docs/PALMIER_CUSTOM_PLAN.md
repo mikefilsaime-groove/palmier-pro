@@ -114,6 +114,10 @@ Hosted implementation branches are developed in clean worktrees so unrelated cha
 
 `main` is reserved as a clean fast-forward mirror of `upstream/main`. Custom work and releases remain on `fal-integration`.
 
+The August 2026 synchronization establishes Palmier Pro 0.7.5 (`d2add80e`) as the current upstream baseline. It was reviewed on `codex/upstream-0.7.5` before advancing `fal-integration`; it was not merged blindly. The integration carries forward upstream timeline markers, timeline keyframe lanes, subtitle import and preview, Agent activity highlighting, clip-setting copy operations, track naming and selection, canvas viewing controls, expanded text animation/fill/tilt support, and related export and rendering fixes.
+
+The synchronization deliberately retains CreatorStudio Editor's product boundary: no Palmier account or credit gate, no Palmier generation backend, no Palmier telemetry or feedback service, no Palmier update feed, local-only transcription, and no unsupported upscale action in the desktop Agent or MCP. The CreatorStudio/Fal/ElevenLabs/Codex provider architecture, one-time optional account sync, sample project, project duplication, in-window settings, custom branding, bundle identity, and release infrastructure remain authoritative.
+
 ```bash
 git switch main
 git fetch upstream --prune
