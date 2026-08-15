@@ -74,10 +74,11 @@ private struct HomeSidebar: View {
             VStack(alignment: .leading, spacing: 2) {
                 if !account.isConnected && !account.isMisconfigured {
                     SidebarRowButton(
-                        label: L10n.string("Connect ScalePlus Pro Max Superpowers plugin"),
+                        label: L10n.string("Connect"),
                         systemImage: "person.crop.circle",
                         action: { account.connectCreatorStudio() }
                     )
+                    .help(L10n.string("Connect ScalePlus Superpowers"))
                 }
                 SidebarRowButton(
                     label: L10n.string("New Project"),

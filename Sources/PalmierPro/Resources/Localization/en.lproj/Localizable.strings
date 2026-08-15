@@ -192,13 +192,15 @@
 "Community Skills Unavailable" = "Community Skills Unavailable";
 "Compatibility: %@" = "Compatibility: %@";
 "Completed" = "Completed";
+"Connect" = "Connect";
 "Connect Codex or add an OpenAI or Anthropic API key to use AI chat." = "Connect Codex or add an OpenAI or Anthropic API key to use AI chat.";
 "Connect Codex or add your own OpenAI or Anthropic API key." = "Connect Codex or add your own OpenAI or Anthropic API key.";
 "Connect CreatorStudio" = "Connect CreatorStudio";
-"Connect ScalePlus Pro Max Superpowers plugin" = "Connect ScalePlus Pro Max Superpowers plugin";
+"Connect ScalePlus Superpowers" = "Connect ScalePlus Superpowers";
+"Connect Superpowers" = "Connect Superpowers";
 "Connect an agent" = "Connect an agent";
 "Connect an external agent to inspect and edit the open CreatorStudio Editor project." = "Connect an external agent to inspect and edit the open CreatorStudio Editor project.";
-"Connect once" = "Connect once";
+"Connect once to sync the Fal.ai setup stored in your CreatorStudio account. CreatorStudio Editor works without connecting." = "Connect once to sync the Fal.ai setup stored in your CreatorStudio account. CreatorStudio Editor works without connecting.";
 "Connected" = "Connected";
 "Connected clients: %@" = "Connected clients: %@";
 "Connected through MCP: %@" = "Connected through MCP: %@";
@@ -236,7 +238,6 @@
 "CreatorStudio Editor does not send Palmier analytics or crash reports." = "CreatorStudio Editor does not send Palmier analytics or crash reports.";
 "CreatorStudio Editor loaded this clip's source file but couldn't prepare it for playback. The file may be corrupt or in an unsupported format." = "CreatorStudio Editor loaded this clip's source file but couldn't prepare it for playback. The file may be corrupt or in an unsupported format.";
 "CreatorStudio Fal.ai" = "CreatorStudio Fal.ai";
-"CreatorStudio account sync" = "CreatorStudio account sync";
 "CreatorStudio account sync connected" = "CreatorStudio account sync connected";
 "CreatorStudio connected" = "CreatorStudio connected";
 "CreatorStudio connection" = "CreatorStudio connection";
@@ -630,7 +631,6 @@
 "OpenAI API Key" = "OpenAI API Key";
 "Opening CreatorStudio…" = "Opening CreatorStudio…";
 "Open…" = "Open…";
-"Optional. Connect once to sync the Fal.ai key stored in your CreatorStudio account. The editor works without this connection." = "Optional. Connect once to sync the Fal.ai key stored in your CreatorStudio account. The editor works without this connection.";
 "Organize with Agent" = "Organize with Agent";
 "Original" = "Original";
 "Original FPS" = "Original FPS";
@@ -753,6 +753,7 @@
 "Saved in this Mac’s Keychain. CreatorStudio Editor will not ask you to connect again unless you disconnect." = "Saved in this Mac’s Keychain. CreatorStudio Editor will not ask you to connect again unless you disconnect.";
 "Saves a copy of this project with all media bundled inside, so it opens on any machine." = "Saves a copy of this project with all media bundled inside, so it opens on any machine.";
 "Scale" = "Scale";
+"ScalePlus Superpowers" = "ScalePlus Superpowers";
 "Score my timeline" = "Score my timeline";
 "Screen" = "Screen";
 "Screenshot a frame" = "Screenshot a frame";

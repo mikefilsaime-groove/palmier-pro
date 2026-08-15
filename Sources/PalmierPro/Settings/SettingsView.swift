@@ -83,7 +83,6 @@ private struct SettingsSidebar: View {
     @Binding var selectedTab: SettingsTab
     let visibleTabs: [SettingsTab]
     let onDismiss: () -> Void
-    @Bindable private var account = AccountService.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -104,9 +103,6 @@ private struct SettingsSidebar: View {
             .padding(.horizontal, AppTheme.Spacing.smMd)
             .padding(.top, AppTheme.Spacing.md)
 
-            if !account.isMisconfigured {
-                IdentityStrip()
-            }
             tabList
             Spacer(minLength: 0)
         }

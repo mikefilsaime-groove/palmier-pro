@@ -27,7 +27,7 @@ struct AccountPane: View {
     }
 
     private var accountSection: some View {
-        SettingsSection(title: L10n.string("CreatorStudio account sync")) {
+        SettingsSection(title: L10n.string("ScalePlus Superpowers")) {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.md) {
                 HStack(spacing: AppTheme.Spacing.md) {
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.xs) {
@@ -54,7 +54,7 @@ struct AccountPane: View {
                         Button(
                             session.isSigningIn
                                 ? L10n.string("Starting connection…")
-                                : L10n.string("Connect once")
+                                : L10n.string("Connect Superpowers")
                         ) {
                             Task { await session.signIn() }
                         }
@@ -203,7 +203,7 @@ struct AccountPane: View {
     private var accountDetail: String {
         session.isSignedIn
             ? L10n.string("Saved in this Mac’s Keychain. CreatorStudio Editor will not ask you to connect again unless you disconnect.")
-            : L10n.string("Optional. Connect once to sync the Fal.ai key stored in your CreatorStudio account. The editor works without this connection.")
+            : L10n.string("Connect once to sync the Fal.ai setup stored in your CreatorStudio account. CreatorStudio Editor works without connecting.")
     }
 
     private var creatorStudioConfigured: Bool {
