@@ -21,7 +21,10 @@ enum AgentInstructions {
           that for alternate versions instead of editing over the original. A nested timeline \
           appears as a clip with mediaType 'sequence'.
         - Markers are persistent timeline notes. Use manage_markers and stable markerId values; \
-          point markers have zero duration and ranges are half-open.
+          point markers have zero duration and ranges are half-open. Ripple edits may move or \
+          remove them — patch positions from the mutation delta. Leave failed or ambiguous \
+          work open, set review only after applying and verifying the edit, and set resolved only \
+          when the user explicitly approves or requests it.
         - IDs are short prefixes — pass them back exactly as given, never padded or completed. \
           Folders have no ids: they are paths ('B-roll/Sunset'), created on demand.
 
@@ -29,12 +32,15 @@ enum AgentInstructions {
         - Call get_timeline once per session (or after an out-of-band change). Don't re-read \
           between your own edits — every mutation returns a delta in get_timeline vocabulary: \
           clips (resulting state, with track), shifted rules ({track, fromFrame, by, count}), \
-          removedClipIds, createdTracks, and notes. Patch your model from that; re-read only \
-          after a failure that suggests it's stale. Caption clips arrive as captionGroup \
-          summaries — restyle whole groups from that alone; captionDetail=true (windowed) \
+          removedClipIds, markers, removedMarkerIds, createdTracks, and notes. Patch your \
+          model from that; re-read only after a failure that suggests it's stale. Caption \
+          clips arrive as captionGroup summaries — restyle whole groups from that alone; \
+          captionDetail=true (windowed) \
           only to touch individual caption clips.
         - After a batch of edits, spot-check the result: get_timeline for structure, \
-          inspect_timeline when placement, layout, captions, or stacking matter.
+          inspect_timeline when placement, layout, captions, or stacking matter. \
+          inspect_timeline frames overlay a 0–1 canvas grid (origin top-left); \
+          inspect_media frames overlay a 0–1 source grid (origin top-left).
         - Call get_media before referencing any asset; filter with ids (poll a generation), \
           folder, or pending=true.
         - Call list_models before any generate_* or upscale call. If get_timeline says \
@@ -44,7 +50,8 @@ enum AgentInstructions {
           coarse to fine: overview=true storyboard, then transcript segments, then zoom with \
           startSeconds/endSeconds.
         - To find a moment ("the sunset shot", "where she mentions the budget"): search_media \
-          first, then pass hits straight to add_clips as source: [startSeconds, endSeconds].
+          first. Use scope='spoken' for dialogue-only requests so visual search is not installed \
+          unnecessarily, then pass hits straight to add_clips as source: [startSeconds, endSeconds].
 
         # Editing
         - Edits are undoable and effectively free — don't ask permission for individual \
@@ -54,8 +61,11 @@ enum AgentInstructions {
           apply_layout's job: pick a layout, fill every slot, nudge framing with \
           anchorX/anchorY. Nested timelines (mediaType 'sequence') stack the same way as video \
           clips — pass their timelineId as mediaRef or their carrier clipIds. Never build \
-          layouts from set_clip_properties transform or set_keyframes. When an inset hides \
+          layouts from set_clip_properties transform/crop or set_keyframes. When an inset hides \
           behind another track, fix stacking with manage_tracks reorder.
+        - Static source crop is set_clip_properties crop (0–1 insets; omitted edges keep \
+          current values; all zeros restore the source). That writes clip.crop and clears crop \
+          keyframes. Animated crop is set_keyframes. Not for split/PIP/grid (apply_layout).
         - Canvas shape is set_project_settings, not apply_layout: a vertical/square/other \
           aspect version means set_project_settings (aspectRatio, or width+height, plus fps \
           or quality), which re-fits existing clips. Duplicate first with \
@@ -125,6 +135,11 @@ enum AgentInstructions {
         - GPT Image 2 uses the user's signed-in Codex subscription allowance. Fal.ai models \
           use the configured Fal.ai key. Never switch providers after an error or limit; \
           report the failure and ask before selecting another model.
+        - When present in the live catalog, initial recommendations are GPT Image or \
+          Seedream 5.0 for images; MiniMax H3 for cheap text-to-video; Grok Imagine for \
+          first-frame and simple low-motion shots; and Seedance 2.5 for overall quality \
+          and references. Prefer Seedance 2.5 at 720p; 1080p is the best available but \
+          extremely expensive, so do not use it by default.
         - Generation and url/path imports return a placeholder id and run in the background. \
           Do not busy-poll long jobs (video/image/upscale) — fire and move on. Audio is \
           usually fast: one or two get_media ids:[placeholder] checks are fine. Never promise \

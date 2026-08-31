@@ -159,13 +159,7 @@ struct InspectorView: View {
             ScrollView {
                 EditorPanelGroup(
                     L10n.string("Canvas"),
-                    contentSpacing: AppTheme.Spacing.sm,
-                    contentInsets: EdgeInsets(
-                        top: AppTheme.Spacing.smMd,
-                        leading: AppTheme.Spacing.smMd + AppTheme.IconSize.xs + AppTheme.Spacing.sm,
-                        bottom: AppTheme.Spacing.smMd,
-                        trailing: AppTheme.Spacing.smMd
-                    )
+                    contentSpacing: AppTheme.Spacing.sm
                 ) {
                     menuMetadataRow(label: L10n.string("Resolution"), value: "\(editor.timeline.width) × \(editor.timeline.height)") { qualityMenuItems }
                     menuMetadataRow(label: L10n.string("Frame Rate"), value: "\(editor.timeline.fps) fps") { fpsMenuItems }
@@ -179,12 +173,12 @@ struct InspectorView: View {
     private var projectInspectorHeader: some View {
         HStack(spacing: AppTheme.Spacing.sm) {
             Image(systemName: "movieclapper")
-                .font(.system(size: AppTheme.FontSize.xs, weight: AppTheme.FontWeight.medium))
+                .font(.system(size: AppTheme.FontSize.smMd, weight: AppTheme.FontWeight.medium))
                 .foregroundStyle(AppTheme.Text.tertiaryColor)
-                .frame(width: AppTheme.IconSize.xs, height: AppTheme.IconSize.xs)
+                .frame(width: AppTheme.IconSize.sm, height: AppTheme.IconSize.sm)
                 .accessibilityHidden(true)
             Text(L10n.string("Project Settings"))
-                .font(.system(size: AppTheme.FontSize.sm, weight: AppTheme.FontWeight.regular))
+                .font(.system(size: AppTheme.FontSize.md, weight: AppTheme.FontWeight.medium))
                 .foregroundStyle(AppTheme.Text.secondaryColor)
                 .lineLimit(1)
             Spacer(minLength: AppTheme.Spacing.xs)
@@ -911,12 +905,12 @@ struct InspectorView: View {
         let infoLabel = assetInfoPresented ? L10n.string("Hide Info") : L10n.string("Show Info")
         return HStack(spacing: AppTheme.Spacing.sm) {
             Image(systemName: asset.type.sfSymbolName)
-                .font(.system(size: AppTheme.FontSize.xs, weight: AppTheme.FontWeight.medium))
+                .font(.system(size: AppTheme.FontSize.smMd, weight: AppTheme.FontWeight.medium))
                 .foregroundStyle(AppTheme.Text.tertiaryColor)
-                .frame(width: AppTheme.IconSize.xs, height: AppTheme.IconSize.xs)
+                .frame(width: AppTheme.IconSize.sm, height: AppTheme.IconSize.sm)
                 .accessibilityHidden(true)
             Text(verbatim: asset.name)
-                .font(.system(size: AppTheme.FontSize.sm, weight: AppTheme.FontWeight.regular))
+                .font(.system(size: AppTheme.FontSize.md, weight: AppTheme.FontWeight.medium))
                 .foregroundStyle(AppTheme.Text.secondaryColor)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -1010,13 +1004,7 @@ struct InspectorView: View {
                             .frame(height: AppTheme.BorderWidth.hairline)
                     }
                     if !metadata.isEmpty {
-                        Text(verbatim: metadata)
-                            .font(.system(size: AppTheme.FontSize.xs))
-                            .foregroundStyle(AppTheme.Text.tertiaryColor)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            .textSelection(.enabled)
-                            .help(Text(verbatim: metadata))
+                        generationMetadataRow(gen, metadata: metadata)
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.smMd)
@@ -1048,6 +1036,28 @@ struct InspectorView: View {
                 .foregroundStyle(AppTheme.Text.secondaryColor)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func generationMetadataRow(_ gen: GenerationInput, metadata: String) -> some View {
+        HStack(spacing: AppTheme.Spacing.sm) {
+            if let iconKey = ModelRegistry.providerIconKey(for: gen.model) {
+                ProviderLogo(iconKey: iconKey, size: AppTheme.IconSize.xs)
+            } else {
+                Image(systemName: "sparkles")
+                    .font(.system(size: AppTheme.FontSize.xxs))
+                    .foregroundStyle(AppTheme.Text.tertiaryColor)
+                    .frame(width: AppTheme.IconSize.xs, height: AppTheme.IconSize.xs)
+                    .accessibilityHidden(true)
+            }
+            Text(verbatim: metadata)
+                .font(.system(size: AppTheme.FontSize.xs))
+                .foregroundStyle(AppTheme.Text.tertiaryColor)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .textSelection(.enabled)
+                .help(Text(verbatim: metadata))
+            Spacer(minLength: AppTheme.Spacing.xs)
         }
     }
 

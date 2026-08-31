@@ -23,12 +23,16 @@ struct HomeView: View {
         .task { await VisualModelLoader.shared.prepare() }
         .onAppear { changelog.checkForWhatsNew() }
         .overlay {
-            if let entry = changelog.pending {
-                UpdateOverlay(entry: entry, changelogURL: changelog.changelogURL) {
-                    withAnimation { changelog.dismiss() }
+            ZStack {
+                if let entry = changelog.pending {
+                    UpdateOverlay(entry: entry, changelogURL: changelog.changelogURL) {
+                        changelog.dismiss()
+                    }
                 }
             }
+            .allowsHitTesting(changelog.pending != nil)
         }
+        .animation(.easeInOut(duration: AppTheme.Anim.transition), value: changelog.pending != nil)
     }
 
     private var content: some View {

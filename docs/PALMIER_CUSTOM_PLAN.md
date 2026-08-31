@@ -114,7 +114,9 @@ Hosted implementation branches are developed in clean worktrees so unrelated cha
 
 `main` is reserved as a clean fast-forward mirror of `upstream/main`. Custom work and releases remain on `fal-integration`.
 
-The August 2026 synchronization establishes Palmier Pro 0.7.5 (`d2add80e`) as the current upstream baseline. It was reviewed on `codex/upstream-0.7.5` before advancing `fal-integration`; it was not merged blindly. The integration carries forward upstream timeline markers, timeline keyframe lanes, subtitle import and preview, Agent activity highlighting, clip-setting copy operations, track naming and selection, canvas viewing controls, expanded text animation/fill/tilt support, and related export and rendering fixes.
+Palmier ended public source development after the annotated `last-gpl-source` tag at `8805801fa4df8bc2dbc57cb0a854a1f5108f95c6`. Palmier states that releases through 0.7.6 and source through that tag remain GPLv3; later releases are proprietary binaries without corresponding public source. The mirror branch therefore tracks `upstream/main` for history and notices, while CreatorStudio Editor integrates code only through `last-gpl-source`. Proprietary post-tag metadata, license terms, and binaries are never merged into the custom product.
+
+The August 2026 synchronization first established Palmier Pro 0.7.5 (`d2add80e`) as the baseline. The August 30 synchronization then reviewed and integrated the final GPL source on `codex/upstream-last-gpl-source-20260830`; neither update was merged blindly. The final GPL integration adds the transcript-and-marker Timeline Index, marker review status and ripple behavior, audio extraction from video, on-demand Smart Search model installation, docked generation UI, editor chrome improvements, 0–1 inspection grids, static Agent crop controls, composition source reuse, generation-model recommendations, localization expansion, and the Home overlay click fix.
 
 The synchronization deliberately retains CreatorStudio Editor's product boundary: no Palmier account or credit gate, no Palmier generation backend, no Palmier telemetry or feedback service, no Palmier update feed, local-only transcription, and no unsupported upscale action in the desktop Agent or MCP. The CreatorStudio/Fal/ElevenLabs/Codex provider architecture, one-time optional account sync, sample project, project duplication, in-window settings, custom branding, bundle identity, and release infrastructure remain authoritative.
 
@@ -124,13 +126,13 @@ git fetch upstream --prune
 git merge --ff-only upstream/main
 git push origin main
 
-git switch fal-integration
-git merge main
+git switch -c codex/upstream-<date> fal-integration
+git merge last-gpl-source
 swift build
 swift test
 ```
 
-Use merge commits when bringing the published mirror into `fal-integration`. Keep provider-specific work in dedicated files, keep shared mutations centralized, and sync frequently. Never merge custom work back into `main`.
+Use a dedicated review branch and a merge commit when bringing the final published GPL source into `fal-integration`. Do not merge later proprietary upstream commits merely because `main` mirrors them. Keep provider-specific work in dedicated files, keep shared mutations centralized, and never merge custom work back into `main`.
 
 ## Releases
 

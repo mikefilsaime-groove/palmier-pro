@@ -1,7 +1,9 @@
 import SwiftUI
 
-struct SpeechTab: View {
+struct SpeechAnalysisSections: View {
     @Environment(EditorViewModel.self) private var editor
+    @Binding var silenceExpanded: Bool
+    @Binding var speakerExpanded: Bool
 
     var body: some View {
         ZStack {
@@ -16,11 +18,13 @@ struct SpeechTab: View {
                 GeneratingOverlay(label: phase, size: .preview)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
-
     private var silenceSection: some View {
-        EditorPanelGroup(L10n.string("Silence Detection"), contentInsets: sectionContentInsets) {
+        EditorPanelGroup(
+            L10n.string("Silence Detection"),
+            isExpanded: $silenceExpanded
+        ) {
             InspectorRow(
                 label: L10n.string("Mark Silence"),
                 labelHelp: L10n.string("Speech is detected on-device in the background. Dims quiet, speech-free spans on timeline waveforms."),
@@ -48,7 +52,7 @@ struct SpeechTab: View {
                 }
             }
             silenceTimingControls
-            removeSilenceRow
+            silenceActions
         }
     }
 
@@ -110,27 +114,20 @@ struct SpeechTab: View {
         .accessibilityLabel(L10n.string(key: label))
     }
 
-    private var removeSilenceRow: some View {
+    private var silenceActions: some View {
         let count = editor.allDeadAir().reduce(0) { $0 + $1.ranges.count }
         return HStack(spacing: AppTheme.Spacing.sm) {
+            Spacer(minLength: AppTheme.Spacing.zero)
+            if count > 0 {
+                Text(verbatim: "\(count)")
+                    .font(.system(size: AppTheme.FontSize.xs))
+                    .foregroundStyle(AppTheme.Text.mutedColor)
+                    .monospacedDigit()
+            }
             Button(L10n.string("Remove")) { editor.removeAllDeadAir() }
                 .buttonStyle(.capsule(.secondary))
                 .disabled(count == 0)
                 .help(L10n.string("Ripple-deletes every silent section; downstream clips close the gaps."))
-            if count > 0 {
-                Text(count == 1 ? L10n.string("1 section") : L10n.string("\(count) sections"))
-                    .font(.system(size: AppTheme.FontSize.xs))
-                    .foregroundStyle(AppTheme.Text.mutedColor)
-            }
         }
-    }
-
-    private var sectionContentInsets: EdgeInsets {
-        EdgeInsets(
-            top: AppTheme.Spacing.smMd,
-            leading: AppTheme.Spacing.mdLg,
-            bottom: AppTheme.Spacing.smMd,
-            trailing: AppTheme.Spacing.mdLg
-        )
     }
 }

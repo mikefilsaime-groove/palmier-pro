@@ -59,10 +59,8 @@ struct AgentPanelView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                messageList
-                floatingTabBar
-            }
+            floatingTabBar
+            messageList
             footer
         }
     }
@@ -72,7 +70,7 @@ struct AgentPanelView: View {
             HStack(spacing: AppTheme.Spacing.xs) {
                 ScrollViewReader { proxy in
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: AppTheme.Spacing.xxs) {
+                        HStack(spacing: AppTheme.Spacing.xs) {
                             ForEach(service.openSessions) { session in
                                 ChatTabView(
                                     session: session,
@@ -99,7 +97,6 @@ struct AgentPanelView: View {
             .glassEffect(.regular, in: .rect(cornerRadius: AppTheme.Radius.lg))
         }
         .padding(.horizontal, AppTheme.Spacing.mdLg)
-        .padding(.top, AppTheme.Spacing.sm)
     }
 
     private var newTabButton: some View {
@@ -281,7 +278,7 @@ struct AgentPanelView: View {
                         .padding(.top, AppTheme.Spacing.sm)
                 }
                 .padding(.horizontal, AppTheme.Spacing.lgXl)
-                .padding(.top, Layout.panelHeaderHeight + AppTheme.Spacing.mdLg)
+                .padding(.top, AppTheme.Spacing.mdLg)
                 .padding(.bottom, AppTheme.Spacing.smMd)
                 .frame(maxWidth: Layout.chatColumnMax)
                 .frame(maxWidth: .infinity)
@@ -565,39 +562,20 @@ private struct ChatTabView: View {
     let isActive: Bool
     let onSelect: () -> Void
     let onClose: () -> Void
-    @State private var hovering = false
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(spacing: AppTheme.Spacing.xs) {
-                HStack(spacing: AppTheme.Spacing.xs) {
-                    Text(displayTitle)
-                        .font(.system(size: AppTheme.FontSize.xs, weight: isActive ? .semibold : .regular))
-                        .foregroundStyle(isActive ? AppTheme.Text.primaryColor : AppTheme.Text.mutedColor)
-                        .lineLimit(1)
-                        .fixedSize()
-                    if hovering || isActive {
-                        Button(action: onClose) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: AppTheme.FontSize.xxs, weight: .medium))
-                                .foregroundStyle(AppTheme.Text.mutedColor)
-                                .frame(width: AppTheme.Spacing.mdLg, height: AppTheme.Spacing.mdLg)
-                        }
-                        .buttonStyle(.plain)
-                        .focusable(false)
-                    }
-                }
-                Rectangle()
-                    .fill(isActive ? AppTheme.Text.primaryColor : Color.clear)
-                    .frame(height: AppTheme.BorderWidth.medium)
-            }
-            .padding(.horizontal, AppTheme.Spacing.sm)
-            .padding(.top, AppTheme.Spacing.xxs)
-            .contentShape(Rectangle())
+            Text(verbatim: displayTitle)
+                .font(.system(
+                    size: AppTheme.FontSize.xs,
+                    weight: isActive ? AppTheme.FontWeight.semibold : AppTheme.FontWeight.medium
+                ))
+                .foregroundStyle(isActive ? AppTheme.Text.primaryColor : AppTheme.Text.secondaryColor)
+                .lineLimit(1)
         }
         .buttonStyle(.plain)
-        .focusable(false)
-        .onHover { hovering = $0 }
+        .documentTabChrome(isActive: isActive, isCloseable: true, onClose: onClose)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     private var displayTitle: String {

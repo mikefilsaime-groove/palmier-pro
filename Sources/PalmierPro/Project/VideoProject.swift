@@ -467,7 +467,7 @@ class VideoProject: NSDocument {
         let editorContent = EditorView()
             .environment(editorViewModel)
             .focusEffectDisabled()
-            .background(.ultraThickMaterial)
+            .background(.ultraThinMaterial)
             .sheet(isPresented: Bindable(editorViewModel).showExportDialog) { [editorViewModel] in
                 ExportView()
                     .environment(editorViewModel)
@@ -480,17 +480,19 @@ class VideoProject: NSDocument {
                 TourOverlay()
                     .environment(editorViewModel)
             }
+            .ignoresSafeArea(.container, edges: .top)
         let editorView = ApplicationSettingsHost(target: settingsTarget) {
             editorContent
         }
         let hostingController = NSHostingController(rootView: editorView.appLocalization().tint(AppTheme.Accent.primary))
         hostingController.sizingOptions = .minSize
+        hostingController.safeAreaRegions = []
 
         let window = NSWindow(contentViewController: hostingController)
         window.minSize = AppTheme.Window.projectMin
         window.titleVisibility = .visible
         window.titlebarAppearsTransparent = true
-        window.backgroundColor = AppTheme.Background.base.withAlphaComponent(CGFloat(AppTheme.Opacity.medium))
+        window.backgroundColor = AppTheme.Background.base.withAlphaComponent(AppTheme.Opacity.high)
         window.isOpaque = false
         window.styleMask.insert(.fullSizeContentView)
         window.fillVisibleScreen()

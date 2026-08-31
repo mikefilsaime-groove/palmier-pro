@@ -25,7 +25,6 @@
 "%lld images are ready in CreatorStudio Editor." = "%lld images are ready in CreatorStudio Editor.";
 "%lld items" = "%lld items";
 "%lld media files are missing and will be skipped." = "%lld media files are missing and will be skipped.";
-"%lld sections" = "%lld sections";
 "%lld selected" = "%lld selected";
 "%lld subtitle files are ready in CreatorStudio Editor." = "%lld subtitle files are ready in CreatorStudio Editor.";
 "%lld text clips are ready in CreatorStudio Editor." = "%lld text clips are ready in CreatorStudio Editor.";
@@ -41,7 +40,6 @@
 "1 credit. %lld remaining after this generation." = "1 credit. %lld remaining after this generation.";
 "1 item" = "1 item";
 "1 media file is missing and will be skipped." = "1 media file is missing and will be skipped.";
-"1 section" = "1 section";
 "1. Open a new chat in Codex or Claude Code." = "1. Open a new chat in Codex or Claude Code.";
 "2. Paste these instructions:" = "2. Paste these instructions:";
 "AI Audio" = "AI Audio";
@@ -57,6 +55,7 @@
 "Add Marker (M)" = "Add Marker (M)";
 "Add Range to Chat" = "Add Range to Chat";
 "Add Text" = "Add Text";
+"Add a comment" = "Add a comment";
 "Add a local Fal.ai key below or connect Fal.ai in CreatorStudio." = "Add a local Fal.ai key below or connect Fal.ai in CreatorStudio.";
 "Add an Anthropic API key to use this model." = "Add an Anthropic API key to use this model.";
 "Add an OpenAI API key to use this model." = "Add an OpenAI API key to use this model.";
@@ -82,8 +81,8 @@
 "Agent Panel" = "Agent Panel";
 "Alignment" = "Alignment";
 "All" = "All";
+"All Statuses" = "All Statuses";
 "All fonts" = "All fonts";
-"All timelines" = "All timelines";
 "Amount" = "Amount";
 "Analyzing media so you can search it." = "Analyzing media so you can search it.";
 "Angle" = "Angle";
@@ -136,6 +135,7 @@
 "Canvas Zoom" = "Canvas Zoom";
 "Cap characters per caption, including spaces and punctuation. A single word may exceed the limit." = "Cap characters per caption, including spaces and punctuation. A single word may exceed the limit.";
 "Cap the words shown per caption. None fits each line to the box." = "Cap the words shown per caption. None fits each line to the box.";
+"Caption %@" = "Caption %@";
 "Captions" = "Captions";
 "Captions use Apple’s on-device SpeechAnalyzer." = "Captions use Apple’s on-device SpeechAnalyzer.";
 "Captions will look like this" = "Captions will look like this";
@@ -148,7 +148,6 @@
 "Change to Match" = "Change to Match";
 "Changes take effect after restarting CreatorStudio Editor." = "Changes take effect after restarting CreatorStudio Editor.";
 "Changing the ratio preserves the shorter edge." = "Changing the ratio preserves the shorter edge.";
-"Chat" = "Chat";
 "Chat history" = "Chat history";
 "Chat with your agent! It can generate content, edit clips, organize your assets, and much more. Start by signing in, or bring your own Anthropic API key." = "Chat with your agent! It can generate content, edit clips, organize your assets, and much more. Start by signing in, or bring your own Anthropic API key.";
 "Check for Updates…" = "Check for Updates…";
@@ -197,6 +196,7 @@
 "Color Dodge" = "Color Dodge";
 "Color Wheels" = "Color Wheels";
 "Color for the active word." = "Color for the active word.";
+"Comments" = "Comments";
 "Community" = "Community";
 "Community Skills Unavailable" = "Community Skills Unavailable";
 "Compatibility: %@" = "Compatibility: %@";
@@ -272,6 +272,7 @@
 "Delete" = "Delete";
 "Delete %lld" = "Delete %lld";
 "Delete Keyframe" = "Delete Keyframe";
+"Delete Marker" = "Delete Marker";
 "Delete Project" = "Delete Project";
 "Delete Project?" = "Delete Project?";
 "Delete Selected Projects?" = "Delete Selected Projects?";
@@ -365,6 +366,7 @@
 "Extend" = "Extend";
 "Extends captions across short gaps and holds the final caption." = "Extends captions across short gaps and holds the final caption.";
 "Extra Large" = "Extra Large";
+"Extract Audio" = "Extract Audio";
 "FLUX Enhance" = "FLUX Enhance";
 "Fade In" = "Fade In";
 "Fade Out" = "Fade Out";
@@ -381,6 +383,7 @@
 "Fill" = "Fill";
 "Fill prompt" = "Fill prompt";
 "Film Grain" = "Film Grain";
+"Filter markers by status" = "Filter markers by status";
 "First Frame" = "First Frame";
 "First/Last" = "First/Last";
 "Fit" = "Fit";
@@ -406,7 +409,6 @@
 "General" = "General";
 "Generate" = "Generate";
 "Generate B-roll" = "Generate B-roll";
-"Generate Captions" = "Generate Captions";
 "Generate Music" = "Generate Music";
 "Generate Music only works on video" = "Generate Music only works on video";
 "Generate Music…" = "Generate Music…";
@@ -445,6 +447,7 @@
 "Help me choose a video model" = "Help me choose a video model";
 "Hide Guides" = "Hide Guides";
 "Hide Info" = "Hide Info";
+"Hide Timeline Tabs" = "Hide Timeline Tabs";
 "Hide clip keyframes" = "Hide clip keyframes";
 "Hide reasoning" = "Hide reasoning";
 "High" = "High";
@@ -489,6 +492,7 @@
 "Invert Colors" = "Invert Colors";
 "Inverted" = "Inverted";
 "Italic" = "Italic";
+"Jump to Playhead" = "Jump to Playhead";
 "Keep Current" = "Keep Current";
 "Keep Editing" = "Keep Editing";
 "Keep Skill" = "Keep Skill";
@@ -546,6 +550,7 @@
 "Mark Silence" = "Mark Silence";
 "Marker %lld" = "Marker %lld";
 "Marker name" = "Marker name";
+"Markers" = "Markers";
 "Master Audio Meter" = "Master Audio Meter";
 "Master — defines the group's clock and transcript." = "Master — defines the group's clock and transcript.";
 "Match Timeline" = "Match Timeline";
@@ -611,6 +616,8 @@
 "No exports yet" = "No exports yet";
 "No generations yet" = "No generations yet";
 "No images" = "No images";
+"No markers" = "No markers";
+"No markers match this filter." = "No markers match this filter.";
 "No matches" = "No matches";
 "No matches for \"%@\"" = "No matches for \"%@\"";
 "No matches for “%@”" = "No matches for “%@”";
@@ -631,7 +638,6 @@
 "Not selected" = "Not selected";
 "Not sure which model fits your shot? The CreatorStudio Video Selector Guide helps compare current models by workflow, source media, duration, aspect ratio, resolution, audio support, and estimated provider cost." = "Not sure which model fits your shot? The CreatorStudio Video Selector Guide helps compare current models by workflow, source media, duration, aspect ratio, resolution, audio support, and estimated provider cost.";
 "Not synced — unusable as an angle." = "Not synced — unusable as an angle.";
-"Notes" = "Notes";
 "Notifications" = "Notifications";
 "OK" = "OK";
 "Off" = "Off";
@@ -686,6 +692,7 @@
 "Preparing" = "Preparing";
 "Preparing…" = "Preparing…";
 "Presence" = "Presence";
+"Press M in the timeline to add a marker." = "Press M in the timeline to add a marker.";
 "Preview" = "Preview";
 "Privacy & Diagnostics" = "Privacy & Diagnostics";
 "Project" = "Project";
@@ -751,15 +758,18 @@
 "Resolution" = "Resolution";
 "Resolution must be at least 2 × 2 pixels." = "Resolution must be at least 2 × 2 pixels.";
 "Resolution must not exceed 8192 pixels on either edge." = "Resolution must not exceed 8192 pixels on either edge.";
+"Resolved" = "Resolved";
 "Restart CreatorStudio Editor" = "Restart CreatorStudio Editor";
 "Restoring saved connection…" = "Restoring saved connection…";
 "Retry" = "Retry";
 "Retry Download" = "Retry Download";
 "Reveal in Finder" = "Reveal in Finder";
+"Review" = "Review";
 "Right" = "Right";
 "Ripple Delete" = "Ripple Delete";
 "Ripple Delete Gap" = "Ripple Delete Gap";
 "Ripple Insert" = "Ripple Insert";
+"Ripple Timeline Markers" = "Ripple Timeline Markers";
 "Ripple Trim" = "Ripple Trim";
 "Ripple-deletes every silent section; downstream clips close the gaps." = "Ripple-deletes every silent section; downstream clips close the gaps.";
 "Rotation" = "Rotation";
@@ -776,6 +786,7 @@
 "Save As…" = "Save As…";
 "Save Changes" = "Save Changes";
 "Save Range as Media" = "Save Range as Media";
+"Save as Audio" = "Save as Audio";
 "Save as Media" = "Save as Media";
 "Save this project to view activity" = "Save this project to view activity";
 "Saved in this Mac’s Keychain. CreatorStudio Editor will not ask you to connect again unless you disconnect." = "Saved in this Mac’s Keychain. CreatorStudio Editor will not ask you to connect again unless you disconnect.";
@@ -789,6 +800,7 @@
 "Scroll Horizontally" = "Scroll Horizontally";
 "Scroll to latest" = "Scroll to latest";
 "Search" = "Search";
+"Search (⌘K)" = "Search (⌘K)";
 "Search models" = "Search models";
 "Search projects" = "Search projects";
 "Search skills" = "Search skills";
@@ -817,7 +829,9 @@
 "Shadows" = "Shadows";
 "Sharpen" = "Sharpen";
 "Shortcuts" = "Shortcuts";
+"Show All Tabs" = "Show All Tabs";
 "Show Info" = "Show Info";
+"Show Timeline Tabs" = "Show Timeline Tabs";
 "Show clip keyframes" = "Show clip keyframes";
 "Show in Finder" = "Show in Finder";
 "Show notifications" = "Show notifications";
@@ -857,6 +871,8 @@
 "Start creating, or explore these to get the most out of CreatorStudio Editor." = "Start creating, or explore these to get the most out of CreatorStudio Editor.";
 "Starting connection…" = "Starting connection…";
 "Starts %@s into the group's clock; matched the master with %@%% confidence." = "Starts %@s into the group's clock; matched the master with %@%% confidence.";
+"Status Filter" = "Status Filter";
+"Status: %@" = "Status: %@";
 "Step %lld of %lld" = "Step %lld of %lld";
 "Step Backward" = "Step Backward";
 "Step Forward" = "Step Forward";
@@ -896,6 +912,7 @@
 "That model is no longer available. Refresh the catalog and try again." = "That model is no longer available. Refresh the catalog and try again.";
 "The clip you're adding has different settings than the current project." = "The clip you're adding has different settings than the current project.";
 "The export" = "The export";
+"The marker comment changed while you were editing. Review it and try again." = "The marker comment changed while you were editing. Review it and try again.";
 "The project will be moved to the Trash." = "The project will be moved to the Trash.";
 "The selected model refused this request. Revise the prompt and try again." = "The selected model refused this request. Revise the prompt and try again.";
 "The selected projects will be moved to the Trash." = "The selected projects will be moved to the Trash.";
@@ -919,14 +936,15 @@
 "Timelines" = "Timelines";
 "Tint" = "Tint";
 "Title Safe" = "Title Safe";
-"Toggle Agent Panel" = "Toggle Agent Panel";
 "Tone" = "Tone";
 "Tools" = "Tools";
 "Top" = "Top";
 "Top / Bottom" = "Top / Bottom";
 "Track Name" = "Track Name";
 "Tracking" = "Tracking";
+"Transcribe" = "Transcribe";
 "Transcribing…" = "Transcribing…";
+"Transcript" = "Transcript";
 "Transcription failed: %@" = "Transcription failed: %@";
 "Transform" = "Transform";
 "Transform with a prompt or motion reference" = "Transform with a prompt or motion reference";
