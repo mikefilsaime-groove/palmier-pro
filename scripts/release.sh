@@ -204,6 +204,11 @@ git add "$APPCAST"
 git commit -m "[build] Publish CreatorStudio Editor $VERSION appcast"
 git push origin fal-integration
 
+echo "==> Uploading creatorstudio-appcast.xml to GitHub release"
+gh release upload "$TAG" "$APPCAST" \
+  --repo "$RELEASE_REPOSITORY" \
+  --clobber
+
 echo ""
 echo "==> Released $TAG"
 echo "    https://github.com/$RELEASE_REPOSITORY/releases/tag/$TAG"
