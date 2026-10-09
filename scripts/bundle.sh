@@ -81,10 +81,18 @@ if [ -f "$LOTTIE_ENTRY_FILE" ] && grep -q '@Entry var epoxyLayoutMargins' "$LOTT
   patch --batch --forward --no-backup-if-mismatch -d "$LOTTIE_CHECKOUT" -p1 \
     < "$ROOT/scripts/patches/lottie-4.6.1-command-line-tools.patch"
 fi
+LOTTIE_SWIFTUI_VIEW="$LOTTIE_CHECKOUT/Sources/Public/Animation/LottieView.swift"
+if ! xcrun --find xcodebuild >/dev/null 2>&1 \
+  && [ -f "$LOTTIE_SWIFTUI_VIEW" ] \
+  && ! grep -q '^#if false' "$LOTTIE_SWIFTUI_VIEW"; then
+  echo "==> Excluding unused Lottie SwiftUI view for Command Line Tools builds"
+  patch --batch --forward --no-backup-if-mismatch -d "$LOTTIE_CHECKOUT" -p1 \
+    < "$ROOT/scripts/patches/lottie-4.6.1-command-line-tools-no-swiftui-view.patch"
+fi
 
 echo "==> Building ($CONFIG, traits: ${TRAITS:-none})"
-swift build "${BUILD_ARGS[@]}"
-BIN="$(swift build "${BUILD_ARGS[@]}" --show-bin-path)/PalmierPro"
+swift build --build-system native "${BUILD_ARGS[@]}"
+BIN="$(swift build --build-system native "${BUILD_ARGS[@]}" --show-bin-path)/PalmierPro"
 SPARKLE_FW="$ROOT/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
 
 echo "==> Assembling $APP"
